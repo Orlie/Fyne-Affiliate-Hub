@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,9 +25,15 @@ const LoginPage: React.FC = () => {
     try {
       await login(email, password);
       // Successful login will trigger a redirect from the App component
-    } catch (err) {
-      console.error(err);
-      setError('Failed to sign in. Please check your credentials.');
+    } catch (err: any) {
+      console.error(err.code, err.message);
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Incorrect password. Please try again.');
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+        setError('No account found with this email address.');
+      } else {
+        setError('Failed to sign in. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }

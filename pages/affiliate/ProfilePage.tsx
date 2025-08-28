@@ -10,7 +10,7 @@ import Card, { CardContent } from '../../components/ui/Card';
 import { SunIcon, MoonIcon, LogoutIcon } from '../../components/icons/Icons';
 
 const ProfilePage: React.FC = () => {
-    const { user, updateProfile, logout } = useAuth();
+    const { user, updateProfile, logout, changePassword } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     
@@ -18,6 +18,11 @@ const ProfilePage: React.FC = () => {
     const [tiktok, setTiktok] = useState(user?.tiktokUsername || '');
     const [phone, setPhone] = useState(user?.shippingPhoneNumber || '');
     const [isSaved, setIsSaved] = useState(false);
+    
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordSuccess, setPasswordSuccess] = useState('');
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
@@ -29,6 +34,31 @@ const ProfilePage: React.FC = () => {
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 2000);
     };
+    
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPasswordError('');
+        setPasswordSuccess('');
+        
+        if (newPassword.length < 6) {
+            setPasswordError('Password must be at least 6 characters long.');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPasswordError('Passwords do not match.');
+            return;
+        }
+        
+        try {
+            await changePassword(newPassword);
+            setPasswordSuccess('Password updated successfully!');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            console.error("Password change failed:", error);
+            setPasswordError('Failed to change password. You may need to log out and log back in.');
+        }
+    };
 
     return (
         <div className="p-4 space-y-6">
@@ -36,12 +66,26 @@ const ProfilePage: React.FC = () => {
             
             <Card>
                 <CardContent>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Account Information</h3>
                     <form onSubmit={handleSave} className="space-y-4">
                         <Input label="Email Address" type="email" value={user?.email} disabled className="bg-gray-100 dark:bg-gray-700"/>
                         <Input label="TikTok Username" value={tiktok} onChange={(e) => setTiktok(e.target.value)} placeholder="@username" data-testid="tiktok-input" />
                         <Input label="Discord Username" value={discord} onChange={(e) => setDiscord(e.target.value)} placeholder="username#1234" data-testid="discord-input" />
                         <Input label="Shipping Phone Number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+15551234567" data-testid="phone-input" />
                         <Button type="submit" className="w-full" data-testid="save-profile-button">{isSaved ? 'Saved!' : 'Save Changes'}</Button>
+                    </form>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardContent>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Change Password</h3>
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                        <Input label="New Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" />
+                        <Input label="Confirm New Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" />
+                        {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
+                        {passwordSuccess && <p className="text-green-500 text-sm">{passwordSuccess}</p>}
+                        <Button type="submit" variant="secondary" className="w-full">Update Password</Button>
                     </form>
                 </CardContent>
             </Card>

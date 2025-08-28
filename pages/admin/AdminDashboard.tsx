@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Button from '../../components/ui/Button';
-import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon } from '../../components/icons/Icons';
+import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon } from '../../components/icons/Icons';
 import SampleRequestQueue from './SampleRequestQueue';
 import AiChatbotManager from './AiChatbotManager';
 import CampaignsManager from './CampaignsManager';
@@ -12,9 +12,10 @@ import LeaderboardManager from './LeaderboardManager';
 import ResourcesManager from './ResourcesManager';
 import IncentivesManager from './IncentivesManager';
 import TicketsManager from './TicketsManager';
+import AffiliatesManager from './AffiliatesManager';
 
 
-type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'ai-chatbot' | 'analytics';
+type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -35,6 +36,8 @@ const AdminDashboard: React.FC = () => {
         return <TicketsManager />;
       case 'incentives':
         return <IncentivesManager />;
+      case 'affiliates':
+        return <AffiliatesManager />;
       case 'ai-chatbot':
         return <AiChatbotManager />;
        case 'analytics':
@@ -54,6 +57,7 @@ const AdminDashboard: React.FC = () => {
         <nav className="flex-1 px-4 py-6 space-y-2">
           <AdminNavLink text="Sample Requests" icon={DocumentTextIcon} active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
           <AdminNavLink text="Campaigns" icon={TagIcon} active={activeTab === 'campaigns'} onClick={() => setActiveTab('campaigns')} />
+          <AdminNavLink text="Affiliates" icon={UsersIcon} active={activeTab === 'affiliates'} onClick={() => setActiveTab('affiliates')} />
           <AdminNavLink text="Leaderboard" icon={TrophyIcon} active={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} />
           <AdminNavLink text="Resources" icon={BookOpenIcon} active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} />
           <AdminNavLink text="Tickets" icon={TicketIcon} active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} />

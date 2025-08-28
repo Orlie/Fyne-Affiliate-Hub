@@ -1,8 +1,7 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User } from '../types';
 import { auth, db, FIREBASE_ENABLED } from '../firebase';
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, updatePassword, User as FirebaseUser, getAuth } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 
 
@@ -13,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   updateProfile: (data: Partial<User>) => Promise<void>;
   register: (details: { displayName: string; username: string; email: string; tiktokUsername: string; discordUsername: string; }, password: string) => Promise<void>;
+  changePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,8 +45,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUser(null);
             await signOut(auth); // Sign out if profile doesn't exist
           }
-        } catch (error) {
-           console.error("Error fetching user profile:", error);
+        } catch (error: any) {
+           console.error(`Error fetching user profile: ${error.code} - ${error.message}`);
            setUser(null);
         }
       } else {
@@ -98,9 +98,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await setDoc(doc(db, 'users', firebaseUser.uid), userProfileData);
     // onAuthStateChanged will automatically handle setting the new user state
   };
+  
+  const changePassword = async (newPassword: string) => {
+    const firebaseAuth = getAuth();
+    const currentUser = firebaseAuth.currentUser;
+    if (!FIREBASE_ENABLED || !currentUser) throw new Error("User not authenticated.");
+    await updatePassword(currentUser, newPassword);
+  }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, register }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, register, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

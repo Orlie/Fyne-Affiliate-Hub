@@ -1,4 +1,3 @@
-
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus, TicketMessage 
@@ -28,6 +27,30 @@ const docToModel = (doc: any) => {
 };
 
 // --- API Functions ---
+
+// USERS
+export const fetchAllAffiliates = async (): Promise<User[]> => {
+    if (!db) return [];
+    const usersCol = collection(db, 'users');
+    const q = query(usersCol, where('role', '==', 'Affiliate'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => docToModel(doc) as User);
+};
+
+export const resetUserPasswordAdmin = async (userId: string): Promise<void> => {
+    alert(`This is a high-security action.
+    
+For security reasons, resetting another user's password must be done from a trusted backend environment, like a Firebase Cloud Function.
+
+To implement this:
+1. Create a new Callable Cloud Function named 'resetPassword'.
+2. In the function, use the Firebase Admin SDK's auth().updateUser(uid, { password: newPassword }) method.
+3. Call this function from the client.
+
+This ensures your admin credentials are never exposed on the client-side.`);
+    console.log(`Placeholder: Would trigger a Cloud Function to reset password for user: ${userId}`);
+};
+
 
 // CAMPAIGNS
 export const fetchCampaigns = async (): Promise<Campaign[]> => {
