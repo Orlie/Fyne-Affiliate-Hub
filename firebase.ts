@@ -1,10 +1,8 @@
-// Fix: Use the Firebase compat library for app initialization to resolve module errors.
-// The v9 modular SDK functions used in the rest of the app are compatible with the app instance created here.
+// Standard Firebase v8 imports
+// FIX: Use Firebase v8 compatibility libraries to work with modern Firebase SDKs.
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration is now hardcoded for reliability
 const firebaseConfig = {
@@ -19,24 +17,22 @@ const firebaseConfig = {
 
 const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-let app;
-let auth;
-let db;
+let auth: firebase.auth.Auth;
+let db: firebase.firestore.Firestore;
 
 if (isFirebaseConfigured) {
   // This prevents re-initializing the app on hot reloads in development
-  // Use v8 compat API for app management
   if (!firebase.apps.length) {
-    app = firebase.initializeApp(firebaseConfig);
-  } else {
-    app = firebase.app();
+    firebase.initializeApp(firebaseConfig);
   }
-  // The app object is compatible with v9 modular functions
-  auth = getAuth(app);
-  db = getFirestore(app);
+  
+  // Get the auth and firestore instances using standard v8 syntax
+  auth = firebase.auth();
+  db = firebase.firestore();
 } else {
   console.warn("Firebase configuration is missing or incomplete. Some features will be disabled.");
 }
 
-export { auth, db };
+// Export the initialized services and the firebase namespace for accessing types like Timestamp
+export { auth, db, firebase };
 export const FIREBASE_ENABLED = isFirebaseConfigured;
