@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { IncentiveCampaign } from '../../types';
 import { fetchIncentives, addIncentive, updateIncentive, deleteIncentive } from '../../services/mockApi';
@@ -11,19 +13,18 @@ const IncentivesManager: React.FC = () => {
   const [incentives, setIncentives] = useState<IncentiveCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // FIX: Use Omit to correctly type `rules` as a string for the form state, resolving the type conflict.
   const [currentIncentive, setCurrentIncentive] = useState<Omit<Partial<IncentiveCampaign>, 'rules'> & { rules?: string } | null>(null);
 
   const loadIncentives = useCallback(async () => {
     setLoading(true);
-    const data = await fetchIncentives();
-    const incentivesWithDates = data.map(inc => ({
-      ...inc,
-      startDate: new Date(inc.startDate),
-      endDate: new Date(inc.endDate),
-    }));
-    setIncentives(incentivesWithDates);
-    setLoading(false);
+    try {
+        const data = await fetchIncentives();
+        setIncentives(data);
+    } catch(error) {
+        console.error("Failed to load incentives:", error);
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -33,7 +34,8 @@ const IncentivesManager: React.FC = () => {
   const handleOpenModal = (incentive?: IncentiveCampaign) => {
     const editableIncentive = incentive 
         ? { ...incentive, rules: incentive.rules.join('\n') } 
-        : {};
+        // FIX: Use 'as const' to ensure 'type' is inferred as a literal type, not a string.
+        : { type: 'GMV Tiers' as const }; // Default value
     setCurrentIncentive(editableIncentive);
     setIsModalOpen(true);
   };
@@ -59,21 +61,30 @@ const IncentivesManager: React.FC = () => {
         rewards: currentIncentive.rewards || '',
     };
 
-    if (dataToSave.id) {
-      await updateIncentive(dataToSave as IncentiveCampaign);
-    } else {
-      const { id, joinedAffiliates, status, ...createData } = dataToSave;
-      await addIncentive(createData as Omit<IncentiveCampaign, 'id'|'joinedAffiliates'|'status'>);
+    try {
+        if (dataToSave.id) {
+          await updateIncentive(dataToSave as IncentiveCampaign);
+        } else {
+          const { id, joinedAffiliates, status, ...createData } = dataToSave;
+          await addIncentive(createData as Omit<IncentiveCampaign, 'id'|'joinedAffiliates'|'status'>);
+        }
+        loadIncentives();
+        handleCloseModal();
+    } catch (error) {
+        console.error("Failed to save incentive:", error);
+        alert("Error saving incentive. Please try again.");
     }
-
-    loadIncentives();
-    handleCloseModal();
   };
 
   const handleDelete = async (incentiveId: string) => {
     if (window.confirm('Are you sure you want to delete this incentive program?')) {
-      await deleteIncentive(incentiveId);
-      loadIncentives();
+        try {
+          await deleteIncentive(incentiveId);
+          loadIncentives();
+        } catch(error) {
+            console.error("Failed to delete incentive:", error);
+            alert("Error deleting incentive. Please try again.");
+        }
     }
   };
 

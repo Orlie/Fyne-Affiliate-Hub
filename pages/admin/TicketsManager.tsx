@@ -16,17 +16,14 @@ const TicketsManager: React.FC = () => {
   
   const loadTickets = useCallback(async () => {
     setLoading(true);
-    const allTickets = await fetchTickets();
-    const ticketsWithDates = allTickets.map(ticket => ({
-      ...ticket,
-      createdAt: new Date(ticket.createdAt),
-      messages: ticket.messages.map(msg => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      })),
-    }));
-    setTickets(ticketsWithDates);
-    setLoading(false);
+    try {
+        const allTickets = await fetchTickets();
+        setTickets(allTickets);
+    } catch (error) {
+        console.error("Failed to load tickets:", error);
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -37,21 +34,22 @@ const TicketsManager: React.FC = () => {
 
   const handleUpdateStatus = async (ticketId: string, status: TicketStatus) => {
     await updateTicketStatus(ticketId, status);
-    loadTickets();
+    // Optimistically update local state for faster UI response
+    setSelectedTicket(prev => prev && prev.id === ticketId ? { ...prev, status } : prev);
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status } : t));
   };
 
   const handleReply = async (ticketId: string, replyText: string) => {
     if (!replyText.trim()) return;
     await addMessageToTicket(ticketId, { sender: 'Admin', text: replyText });
-    loadTickets();
-    // Also update the selected ticket in the modal to show the new message
-    const updatedTicket = await fetchTickets().then(allTickets => allTickets.find(t => t.id === ticketId));
+    
+    // Refresh data to show new message
+    const refreshedTickets = await fetchTickets();
+    setTickets(refreshedTickets);
+    
+    const updatedTicket = refreshedTickets.find(t => t.id === ticketId);
     if (updatedTicket) {
-      setSelectedTicket({
-        ...updatedTicket,
-        createdAt: new Date(updatedTicket.createdAt),
-        messages: updatedTicket.messages.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) })),
-      });
+      setSelectedTicket(updatedTicket);
     }
   };
 

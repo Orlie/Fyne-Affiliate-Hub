@@ -16,24 +16,25 @@ const CampaignsPage: React.FC = () => {
 
     useEffect(() => {
         const loadData = async () => {
+            if (!user) return;
             setLoading(true);
-            const [campaignsData, requestsData] = await Promise.all([
-                fetchCampaigns(),
-                fetchSampleRequests()
-            ]);
-            
-            // FIX: Convert createdAt string from mock API back to Date object
-            const campaignsWithDates = campaignsData.map(campaign => ({
-                ...campaign,
-                createdAt: new Date(campaign.createdAt)
-            }));
-
-            setCampaigns(campaignsWithDates.filter(c => c.active));
-            setRequests(requestsData);
-            setLoading(false);
+            try {
+                const [campaignsData, requestsData] = await Promise.all([
+                    fetchCampaigns(),
+                    fetchSampleRequests() // In a real app, you might query this for the specific user
+                ]);
+                
+                setCampaigns(campaignsData);
+                // Filter requests for the current user
+                setRequests(requestsData.filter(r => r.affiliateId === user.uid));
+            } catch(error) {
+                console.error("Failed to load campaign data:", error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadData();
-    }, []);
+    }, [user]);
 
     const categories = useMemo(() => ['All', ...new Set(campaigns.map(c => c.category))], [campaigns]);
 
@@ -58,7 +59,7 @@ const CampaignsPage: React.FC = () => {
 
 
     const getRequestStatusForCampaign = (campaignId: string) => {
-        return requests.find(r => r.campaignId === campaignId && r.affiliateId === user?.uid);
+        return requests.find(r => r.campaignId === campaignId);
     }
 
     if (loading) return <p className="p-4 text-center">Loading campaigns...</p>;

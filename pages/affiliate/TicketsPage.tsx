@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ticket } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,17 +26,14 @@ const TicketsPage: React.FC = () => {
     const loadTickets = useCallback(async () => {
         if (!user) return;
         setLoading(true);
-        const data = await fetchTickets(user.uid);
-        const ticketsWithDates = data.map(ticket => ({
-          ...ticket,
-          createdAt: new Date(ticket.createdAt),
-          messages: ticket.messages.map(msg => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp),
-          })),
-        }));
-        setTickets(ticketsWithDates);
-        setLoading(false);
+        try {
+            const data = await fetchTickets(user.uid);
+            setTickets(data);
+        } catch(error) {
+            console.error("Failed to load tickets:", error);
+        } finally {
+            setLoading(false);
+        }
     }, [user]);
 
     useEffect(() => {
@@ -72,37 +70,41 @@ const TicketsPage: React.FC = () => {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center">My Support Tickets</h2>
 
             {loading ? <p className="text-center">Loading tickets...</p> : (
-                <div className="space-y-3">
-                    {tickets.map(ticket => (
-                        <Card key={ticket.id}>
-                            <CardContent>
-                                <div className="cursor-pointer" onClick={() => toggleExpand(ticket.id)}>
-                                    <div className="flex justify-between items-center">
-                                        <p className="font-bold text-gray-900 dark:text-white">{ticket.subject}</p>
-                                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-200 dark:bg-gray-700">{ticket.status}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{ticket.createdAt.toLocaleDateString()}</p>
-                                </div>
-
-                                {expandedTicketId === ticket.id && (
-                                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                        <div className="space-y-3 max-h-60 overflow-y-auto mb-4 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-md">
-                                            {ticket.messages.map((msg, index) => (
-                                                <div key={index} className={`flex flex-col ${msg.sender === 'Affiliate' ? 'items-end' : 'items-start'}`}>
-                                                    <div className={`p-2 rounded-lg max-w-xs ${msg.sender === 'Affiliate' ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-700'}`}>
-                                                        <p className="text-sm">{msg.text}</p>
-                                                    </div>
-                                                     <span className="text-xs text-gray-400 mt-1">{msg.sender} - {msg.timestamp.toLocaleTimeString()}</span>
-                                                </div>
-                                            ))}
+                tickets.length > 0 ? (
+                    <div className="space-y-3">
+                        {tickets.map(ticket => (
+                            <Card key={ticket.id}>
+                                <CardContent>
+                                    <div className="cursor-pointer" onClick={() => toggleExpand(ticket.id)}>
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-bold text-gray-900 dark:text-white">{ticket.subject}</p>
+                                            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-200 dark:bg-gray-700">{ticket.status}</span>
                                         </div>
-                                        <ReplyForm ticketId={ticket.id} onReply={handleReply} />
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{ticket.createdAt.toLocaleDateString()}</p>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+
+                                    {expandedTicketId === ticket.id && (
+                                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                            <div className="space-y-3 max-h-60 overflow-y-auto mb-4 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-md">
+                                                {ticket.messages.map((msg, index) => (
+                                                    <div key={index} className={`flex flex-col ${msg.sender === 'Affiliate' ? 'items-end' : 'items-start'}`}>
+                                                        <div className={`p-2 rounded-lg max-w-xs ${msg.sender === 'Affiliate' ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-700'}`}>
+                                                            <p className="text-sm">{msg.text}</p>
+                                                        </div>
+                                                         <span className="text-xs text-gray-400 mt-1">{msg.sender} - {msg.timestamp.toLocaleTimeString()}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <ReplyForm ticketId={ticket.id} onReply={handleReply} />
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center text-gray-500 pt-8">You have no support tickets.</p>
+                )
             )}
 
             {isModalOpen && <NewTicketModal onClose={() => setIsModalOpen(false)} onCreate={handleCreateTicket} />}

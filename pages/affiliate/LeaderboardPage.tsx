@@ -11,15 +11,20 @@ const LeaderboardPage: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const data = await fetchLeaderboard();
-            setLeaderboard(data);
-            setLoading(false);
+            try {
+                const data = await fetchLeaderboard();
+                setLeaderboard(data);
+            } catch (error) {
+                console.error("Failed to load leaderboard:", error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadData();
     }, []);
 
     if (loading) return <p className="p-4 text-center">Loading leaderboard...</p>;
-    if (!leaderboard) return <p className="p-4 text-center">Could not load leaderboard.</p>;
+    if (!leaderboard) return <p className="p-4 text-center">Leaderboard data for today is not available yet.</p>;
 
     return (
         <div className="p-4 space-y-4">

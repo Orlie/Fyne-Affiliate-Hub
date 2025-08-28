@@ -16,9 +16,14 @@ const ResourcesPage: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const data = await fetchResources();
-            setResources(data);
-            setLoading(false);
+            try {
+                const data = await fetchResources();
+                setResources(data);
+            } catch (error) {
+                console.error("Failed to load resources:", error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadData();
     }, []);
@@ -48,14 +53,14 @@ const ResourcesPage: React.FC = () => {
             
             <div className="mt-6 space-y-4">
                 {loading ? <p>Loading resources...</p> : 
-                    filteredResources.map(article => (
+                    filteredResources.length > 0 ? filteredResources.map(article => (
                         <Card key={article.id}>
                             <CardContent>
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">{article.title}</h3>
                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{article.content}</p>
                             </CardContent>
                         </Card>
-                    ))
+                    )) : <p className="text-center text-gray-500">No resources found in this category.</p>
                 }
             </div>
         </div>

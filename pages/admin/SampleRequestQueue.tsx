@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SampleRequest, SampleRequestStatus } from '../../types';
-// FIX: Import MOCK_CAMPAIGNS to resolve the 'Cannot find name' error.
-import { fetchSampleRequests, updateSampleRequestStatus, fetchCampaigns } from '../../services/mockApi';
+import { fetchSampleRequests, updateSampleRequestStatus, fetchAllCampaignsAdmin } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { Campaign } from '../../types';
@@ -24,18 +23,18 @@ const SampleRequestQueue: React.FC = () => {
 
   const loadRequests = useCallback(async (tab: QueueTab) => {
     setLoading(true);
-    const [requestData, campaignData] = await Promise.all([
-        fetchSampleRequests(tab),
-        fetchCampaigns()
-    ]);
-    // FIX: Convert createdAt string from mock API back to Date object
-    const requestsWithDates = requestData.map(req => ({
-        ...req,
-        createdAt: new Date(req.createdAt)
-    }));
-    setRequests(requestsWithDates);
-    setCampaigns(campaignData);
-    setLoading(false);
+    try {
+        const [requestData, campaignData] = await Promise.all([
+            fetchSampleRequests(tab),
+            fetchAllCampaignsAdmin()
+        ]);
+        setRequests(requestData);
+        setCampaigns(campaignData);
+    } catch(error) {
+        console.error("Failed to load sample requests:", error);
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

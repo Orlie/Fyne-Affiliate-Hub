@@ -1,8 +1,9 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { Campaign } from '../../types';
-import { fetchCampaigns, syncFromGoogleSheet } from '../../services/mockApi';
+import { fetchAllCampaignsAdmin, syncFromGoogleSheet } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -15,14 +16,20 @@ const CampaignsManager: React.FC = () => {
   const [syncMessage, setSyncMessage] = useState('');
 
   useEffect(() => {
-    const loadCampaigns = async () => {
-      setLoading(true);
-      const data = await fetchCampaigns();
-      setCampaigns(data);
-      setLoading(false);
-    };
     loadCampaigns();
   }, []);
+
+  const loadCampaigns = async () => {
+    setLoading(true);
+    try {
+        const data = await fetchAllCampaignsAdmin();
+        setCampaigns(data);
+    } catch (error) {
+        console.error("Failed to load campaigns:", error);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const handleSync = async () => {
     if (!sheetUrl) {
@@ -33,8 +40,12 @@ const CampaignsManager: React.FC = () => {
     setSyncMessage('');
     try {
         const syncedCampaigns = await syncFromGoogleSheet(sheetUrl);
-        setCampaigns(syncedCampaigns);
-        setSyncMessage(`Sync successful! Loaded ${syncedCampaigns.length} campaigns.`);
+        if (syncedCampaigns.length > 0) {
+            setCampaigns(syncedCampaigns);
+            setSyncMessage(`Sync successful! Loaded ${syncedCampaigns.length} campaigns.`);
+        } else {
+             setSyncMessage(`Sync process initiated. This requires a backend function to complete.`);
+        }
     } catch (error) {
         setSyncMessage('Error syncing from Google Sheet. Please check the URL and format.');
         console.error(error);

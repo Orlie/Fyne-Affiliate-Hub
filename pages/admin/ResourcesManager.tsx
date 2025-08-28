@@ -18,9 +18,14 @@ const ResourcesManager: React.FC = () => {
 
   const loadResources = useCallback(async () => {
     setLoading(true);
-    const data = await fetchResources();
-    setResources(data);
-    setLoading(false);
+    try {
+        const data = await fetchResources();
+        setResources(data);
+    } catch(error) {
+        console.error("Failed to load resources:", error);
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -28,7 +33,7 @@ const ResourcesManager: React.FC = () => {
   }, [loadResources]);
 
   const handleOpenModal = (resource?: ResourceArticle) => {
-    setCurrentResource(resource || {});
+    setCurrentResource(resource || { category: 'Daily Content Briefs' });
     setIsModalOpen(true);
   };
 
@@ -42,11 +47,16 @@ const ResourcesManager: React.FC = () => {
       alert('Please fill all fields');
       return;
     }
-
-    if (currentResource.id) {
-      await updateResource(currentResource as ResourceArticle);
-    } else {
-      await addResource(currentResource as Omit<ResourceArticle, 'id'>);
+    
+    try {
+        if (currentResource.id) {
+          await updateResource(currentResource as ResourceArticle);
+        } else {
+          await addResource(currentResource as Omit<ResourceArticle, 'id'>);
+        }
+    } catch (error) {
+        console.error("Failed to save resource:", error);
+        alert("Error saving resource. Please try again.");
     }
     
     loadResources();
@@ -55,8 +65,13 @@ const ResourcesManager: React.FC = () => {
 
   const handleDelete = async (resourceId: string) => {
     if (window.confirm('Are you sure you want to delete this resource?')) {
-      await deleteResource(resourceId);
-      loadResources();
+        try {
+            await deleteResource(resourceId);
+            loadResources();
+        } catch (error) {
+            console.error("Failed to delete resource:", error);
+            alert("Error deleting resource. Please try again.");
+        }
     }
   };
 

@@ -13,14 +13,14 @@ const IncentivesPage: React.FC = () => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const data = await fetchIncentives();
-            const incentivesWithDates = data.map(inc => ({
-                ...inc,
-                startDate: new Date(inc.startDate),
-                endDate: new Date(inc.endDate),
-            }));
-            setIncentives(incentivesWithDates);
-            setLoading(false);
+            try {
+                const data = await fetchIncentives();
+                setIncentives(data);
+            } catch(error) {
+                console.error("Failed to load incentives:", error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadData();
     }, []);
@@ -30,25 +30,22 @@ const IncentivesPage: React.FC = () => {
     const handleJoinCampaign = async (campaignId: string) => {
         if (joinedCampaigns.has(campaignId)) return;
 
-        // Optimistic UI Update
-        setIncentives(prevIncentives =>
-            prevIncentives.map(inc =>
-                inc.id === campaignId
-                    ? {
-                        ...inc,
-                        joinedAffiliates: inc.joinedAffiliates + 1,
-                        status: (inc.joinedAffiliates + 1) >= inc.minAffiliates ? 'Active' : inc.status
-                      }
-                    : inc
-            )
-        );
         setJoinedCampaigns(prev => new Set(prev).add(campaignId));
 
         try {
             await joinIncentiveCampaign(campaignId);
+            // Refresh data after joining
+            const data = await fetchIncentives();
+            setIncentives(data);
         } catch (error) {
             console.error("Failed to join campaign:", error);
-            // In a real app, you would revert the optimistic update here.
+            alert("There was an error joining the campaign. Please try again.");
+            // Revert optimistic state update
+            setJoinedCampaigns(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(campaignId);
+                return newSet;
+            });
         }
     };
 

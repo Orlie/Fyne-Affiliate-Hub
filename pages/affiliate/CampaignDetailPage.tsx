@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Campaign, SampleRequest } from '../../types';
-import { fetchCampaigns, submitSampleRequest, fetchSampleRequests } from '../../services/mockApi';
+import { fetchCampaignById, submitSampleRequest, fetchSampleRequests } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -29,19 +29,20 @@ const CampaignDetailPage: React.FC = () => {
     const [adCode, setAdCode] = useState('');
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
             if (!campaignId || !user) return;
             setLoading(true);
             try {
-                // In a real app, you'd fetch a single campaign
-                const allCampaigns = await fetchCampaigns();
-                const currentCampaign = allCampaigns.find(c => c.id === campaignId) || null;
+                const currentCampaign = await fetchCampaignById(campaignId);
                 setCampaign(currentCampaign);
 
-                const allRequests = await fetchSampleRequests();
-                const currentRequest = allRequests.find(r => r.campaignId === campaignId && r.affiliateId === user.uid);
+                // Fetch only requests for this user, then find the one for this campaign
+                const allUserRequests = await fetchSampleRequests();
+                const userRequests = allUserRequests.filter(r => r.affiliateId === user.uid);
+                const currentRequest = userRequests.find(r => r.campaignId === campaignId);
                 setRequest(currentRequest);
 
             } catch (err) {
@@ -58,8 +59,9 @@ const CampaignDetailPage: React.FC = () => {
         e.preventDefault();
         setError('');
         setSuccessMessage('');
-        if (!campaign || !user) return;
+        if (!campaign || !user || isSubmitting) return;
 
+        setIsSubmitting(true);
         const result = await submitSampleRequest({ 
             campaignId: campaign.id,
             affiliateId: user.uid,
@@ -70,20 +72,22 @@ const CampaignDetailPage: React.FC = () => {
         if (result.success) {
             setSuccessMessage(result.message);
             // Refetch requests to update UI state
-            const requestsData = await fetchSampleRequests();
-            const currentRequest = requestsData.find(r => r.campaignId === campaign.id && r.affiliateId === user.uid);
+            const allUserRequests = await fetchSampleRequests();
+            const userRequests = allUserRequests.filter(r => r.affiliateId === user.uid);
+            const currentRequest = userRequests.find(r => r.campaignId === campaign.id);
             setRequest(currentRequest);
             setFyneVideoUrl('');
             setAdCode('');
         } else {
             setError(result.message);
         }
+        setIsSubmitting(false);
     };
     
     if (loading) return <p className="p-4 text-center">Loading campaign details...</p>;
     if (!campaign) return <p className="p-4 text-center">Campaign not found.</p>;
 
-    const isShowcaseReady = request?.status === 'PendingShowcase';
+    const isShowcaseReady = request?.status === 'PendingShowcase' || request?.status === 'PendingOrder' || request?.status === 'Shipped';
 
     return (
         <div className="p-4 space-y-4">
@@ -128,7 +132,7 @@ const CampaignDetailPage: React.FC = () => {
                                 <Input label="Ad Code" placeholder="FYNE123" value={adCode} onChange={e => setAdCode(e.target.value)} required data-testid="ad-code-input"/>
                                 {error && <p className="text-red-500 text-sm">{error}</p>}
                                 {successMessage && <p className="text-green-500 text-sm">{successMessage}</p>}
-                                <Button type="submit" className="w-full">Submit Request</Button>
+                                <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Submit Request'}</Button>
                             </form>
                         </>
                     ) : (
@@ -154,7 +158,6 @@ const CampaignDetailPage: React.FC = () => {
                             disabled={!isShowcaseReady}
                             onClick={() => {
                                 window.open(campaign.shareLink, '_blank');
-                                alert('Showcase action completed! Your sample will be ordered within 24 hours.');
                             }}
                         >
                             Add to Showcase

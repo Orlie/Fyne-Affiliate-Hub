@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect } from 'react';
 import { Leaderboard } from '../../types';
 import { fetchLeaderboard, syncLeaderboardFromGoogleSheet } from '../../services/mockApi';
@@ -20,9 +21,14 @@ const LeaderboardManager: React.FC = () => {
 
   const loadLeaderboard = async () => {
     setLoading(true);
-    const data = await fetchLeaderboard();
-    setLeaderboard(data);
-    setLoading(false);
+    try {
+        const data = await fetchLeaderboard();
+        setLeaderboard(data);
+    } catch (error) {
+        console.error("Failed to load leaderboard:", error);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleSync = async () => {
@@ -34,8 +40,12 @@ const LeaderboardManager: React.FC = () => {
     setSyncMessage('');
     try {
       const syncedLeaderboard = await syncLeaderboardFromGoogleSheet(sheetUrl);
-      setLeaderboard(syncedLeaderboard);
-      setSyncMessage('Sync successful! Leaderboard has been updated.');
+      if (syncedLeaderboard) {
+          setLeaderboard(syncedLeaderboard);
+          setSyncMessage('Sync successful! Leaderboard has been updated.');
+      } else {
+          setSyncMessage(`Sync process initiated. This requires a backend function to complete.`);
+      }
     } catch (error) {
       setSyncMessage('Error syncing from Google Sheet.');
       console.error(error);
@@ -108,7 +118,7 @@ const LeaderboardManager: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          <p>No leaderboard data available.</p>
+          <p className="mt-4 text-gray-500">No leaderboard data available for today.</p>
         )}
       </div>
     </div>
