@@ -1,10 +1,9 @@
-// FIX: Add type augmentations for firebase auth and firestore services.
+// FIX: Changed to use the firebase/compat library to resolve import errors with older firebase versions
+import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
-
-// The global 'firebase' object is now loaded from index.html via script tags.
-// This file initializes the services from that global object.
-declare var firebase: any; // Inform TypeScript that 'firebase' is a global variable.
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration is now hardcoded for reliability
 const firebaseConfig = {
@@ -19,22 +18,20 @@ const firebaseConfig = {
 
 const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-let auth: any;
-let db: any;
+// Initialize Firebase using compat syntax, which is robust to version mismatches.
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-if (isFirebaseConfigured) {
-  // This prevents re-initializing the app on hot reloads in development
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  
-  // Get the auth and firestore instances using standard v8 syntax from the global object
-  auth = firebase.auth();
-  db = firebase.firestore();
-} else {
+// Get the app instance and then get the v9 services, which are compatible.
+const app = firebase.app();
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+if (!isFirebaseConfigured) {
   console.warn("Firebase configuration is missing or incomplete. Some features will be disabled.");
 }
 
-// Export the initialized services and the firebase namespace for accessing types like Timestamp
-export { auth, db, firebase };
+// Export the initialized services
+export { app, auth, db };
 export const FIREBASE_ENABLED = isFirebaseConfigured;

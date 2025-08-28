@@ -1,15 +1,23 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { User } from '../types';
-// FIX: Use v8 compat firebase instances and types
-import { auth, db, FIREBASE_ENABLED, firebase } from '../firebase';
+import { User as AppUser } from '../types';
+import { auth, db, FIREBASE_ENABLED } from '../firebase';
+import { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  createUserWithEmailAndPassword,
+  updatePassword,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 
 
 interface AuthContextType {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  updateProfile: (data: Partial<User>) => Promise<void>;
+  updateProfile: (data: Partial<AppUser>) => Promise<void>;
   register: (details: { displayName: string; username: string; email: string; tiktokUsername: string; discordUsername: string; }, password: string) => Promise<void>;
   changePassword: (newPassword: string) => Promise<void>;
 }
@@ -17,37 +25,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!FIREBASE_ENABLED || !auth) {
+    if (!FIREBASE_ENABLED) {
       console.warn("Firebase is not configured. App is in offline mode.");
       setLoading(false);
       return;
     }
 
-    // FIX: Use v8 onAuthStateChanged syntax
-    // FIX: Correctly type the firebase user object using `firebase.User`.
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: firebase.User | null) => {
-      if (firebaseUser && db) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
         try {
-          // FIX: Use v8 firestore syntax
-          const userDocRef = db.collection('users').doc(firebaseUser.uid);
-          const userDoc = await userDocRef.get();
-          if (userDoc.exists) {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
             const data = userDoc.data();
             // Convert Firestore Timestamp to JS Date
-            // FIX: Use v8 Timestamp type
-            if (data && data.createdAt && data.createdAt instanceof firebase.firestore.Timestamp) {
+            if (data && data.createdAt && data.createdAt instanceof Timestamp) {
                 data.createdAt = data.createdAt.toDate();
             }
-            setUser({ uid: firebaseUser.uid, ...data } as User);
+            setUser({ uid: firebaseUser.uid, ...data } as AppUser);
           } else {
             console.error("User document not found in Firestore for UID:", firebaseUser.uid);
             setUser(null);
-            // FIX: Use v8 signOut syntax
-            await auth.signOut(); // Sign out if profile doesn't exist
+            await signOut(auth); // Sign out if profile doesn't exist
           }
         } catch (error: any) {
            console.error(`Error fetching user profile: ${error.code} - ${error.message}`);
@@ -63,22 +66,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (!FIREBASE_ENABLED || !auth) throw new Error("Firebase not configured.");
-    // FIX: Use v8 signInWithEmailAndPassword syntax
-    await auth.signInWithEmailAndPassword(email, password);
+    if (!FIREBASE_ENABLED) throw new Error("Firebase not configured.");
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
-    if (!FIREBASE_ENABLED || !auth) return;
-    // FIX: Use v8 signOut syntax
-    await auth.signOut();
+    if (!FIREBASE_ENABLED) return;
+    await signOut(auth);
   };
   
-  const updateProfile = async (data: Partial<User>) => {
-    if (user && db) {
-      // FIX: Use v8 firestore syntax
-      const userDocRef = db.collection('users').doc(user.uid);
-      await userDocRef.set(data, { merge: true });
+  const updateProfile = async (data: Partial<AppUser>) => {
+    if (user) {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, data, { merge: true });
       setUser(prevUser => prevUser ? { ...prevUser, ...data } : null);
     } else {
        console.error("Cannot update profile. User not logged in or DB not available.");
@@ -86,10 +86,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const register = async (details: { displayName: string; username: string; email: string; tiktokUsername: string; discordUsername: string; }, password: string) => {
-    if (!FIREBASE_ENABLED || !auth || !db) throw new Error("Firebase not configured.");
+    if (!FIREBASE_ENABLED) throw new Error("Firebase not configured.");
     
-    // FIX: Use v8 createUserWithEmailAndPassword syntax
-    const userCredential = await auth.createUserWithEmailAndPassword(details.email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
     const firebaseUser = userCredential.user;
 
     if (!firebaseUser) {
@@ -104,21 +103,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         discordUsername: details.discordUsername,
         role: 'Affiliate' as const,
         status: 'Verified' as const,
-        // FIX: Use v8 Timestamp syntax
-        createdAt: firebase.firestore.Timestamp.now(),
+        createdAt: Timestamp.now(),
     };
 
-    // FIX: Use v8 firestore syntax
-    await db.collection('users').doc(firebaseUser.uid).set(userProfileData);
+    await setDoc(doc(db, 'users', firebaseUser.uid), userProfileData);
     // onAuthStateChanged will automatically handle setting the new user state
   };
   
   const changePassword = async (newPassword: string) => {
-    // FIX: Use imported auth instance from firebase.ts
     const currentUser = auth.currentUser;
     if (!FIREBASE_ENABLED || !currentUser) throw new Error("User not authenticated.");
-    // FIX: Use v8 updatePassword syntax
-    await currentUser.updatePassword(newPassword);
+    await updatePassword(currentUser, newPassword);
   }
 
   return (

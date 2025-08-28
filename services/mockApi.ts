@@ -1,9 +1,12 @@
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
-    IncentiveCampaign, Ticket, TicketStatus, TicketMessage 
+    IncentiveCampaign, Ticket, TicketStatus
 } from '../types';
-// FIX: Use v8 compat firebase instances and types
-import { db, FIREBASE_ENABLED, firebase } from '../firebase';
+import { db, FIREBASE_ENABLED } from '../firebase';
+import { 
+    collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
+    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot
+} from 'firebase/firestore';
 
 
 if (!FIREBASE_ENABLED) {
@@ -11,15 +14,14 @@ if (!FIREBASE_ENABLED) {
 }
 
 // --- Helper Functions ---
-// FIX: Use v8 snapshot and timestamp types
-const docToModel = (doc: firebase.firestore.DocumentSnapshot) => {
-    if (!doc.exists) return null;
+const docToModel = (doc: DocumentSnapshot) => {
+    if (!doc.exists()) return null;
     const data = doc.data();
     if (!data) return null;
     const model: any = { id: doc.id, ...data };
     // Convert all Firestore Timestamps to JS Date objects
     for (const key in model) {
-        if (model[key] instanceof firebase.firestore.Timestamp) {
+        if (model[key] instanceof Timestamp) {
             model[key] = model[key].toDate();
         }
     }
@@ -31,10 +33,9 @@ const docToModel = (doc: firebase.firestore.DocumentSnapshot) => {
 // USERS
 export const fetchAllAffiliates = async (): Promise<User[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    const usersCol = db.collection('users');
-    const q = usersCol.where('role', '==', 'Affiliate').orderBy('createdAt', 'desc');
-    const snapshot = await q.get();
+    const usersCol = collection(db, 'users');
+    const q = query(usersCol, where('role', '==', 'Affiliate'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as User);
 };
 
@@ -56,51 +57,43 @@ This ensures your admin credentials are never exposed on the client-side.`);
 // CAMPAIGNS
 export const fetchCampaigns = async (): Promise<Campaign[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    const campaignsCol = db.collection('campaigns');
-    const q = campaignsCol.where('active', '==', true);
-    const snapshot = await q.get();
+    const campaignsCol = collection(db, 'campaigns');
+    const q = query(campaignsCol, where('active', '==', true));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as Campaign);
 };
 
 export const fetchAllCampaignsAdmin = async (): Promise<Campaign[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    const campaignsCol = db.collection('campaigns');
-    const snapshot = await campaignsCol.get();
+    const campaignsCol = collection(db, 'campaigns');
+    const snapshot = await getDocs(campaignsCol);
     return snapshot.docs.map(doc => docToModel(doc) as Campaign);
 };
 
 export const fetchCampaignById = async (id: string): Promise<Campaign | null> => {
     if (!db) return null;
-    // FIX: Use v8 firestore query syntax
-    const docRef = db.collection('campaigns').doc(id);
-    const docSnap = await docRef.get();
+    const docRef = doc(db, 'campaigns', id);
+    const docSnap = await getDoc(docRef);
     return docToModel(docSnap) as Campaign | null;
 };
 
 // SAMPLE REQUESTS
 export const fetchSampleRequests = async (status?: SampleRequestStatus): Promise<SampleRequest[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    let query: firebase.firestore.Query = db.collection('sampleRequests');
+    let q = query(collection(db, 'sampleRequests'), orderBy('createdAt', 'desc'));
     if (status) {
-        query = query.where('status', '==', status);
+        q = query(collection(db, 'sampleRequests'), where('status', '==', status), orderBy('createdAt', 'desc'));
     }
-    const finalQuery = query.orderBy('createdAt', 'desc');
-    const snapshot = await finalQuery.get();
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as SampleRequest);
 };
 
 export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' | 'status' | 'createdAt' | 'campaignName' | 'affiliateTiktok'>): Promise<{success: boolean; message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
     
-    // In Firestore, you'd use security rules or a Cloud Function for uniqueness checks.
-    // This client-side check is illustrative.
-    const requestsRef = db.collection('sampleRequests');
-    // FIX: Use v8 firestore query syntax
-    const q = requestsRef.where('affiliateId', '==', requestData.affiliateId);
-    const snapshot = await q.get();
+    const requestsRef = collection(db, 'sampleRequests');
+    const q = query(requestsRef, where('affiliateId', '==', requestData.affiliateId));
+    const snapshot = await getDocs(q);
     const isDuplicate = snapshot.docs.some(doc => {
         const data = doc.data();
         return data.fyneVideoUrl === requestData.fyneVideoUrl || data.adCode === requestData.adCode;
@@ -111,8 +104,7 @@ export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' 
     }
 
     const campaign = await fetchCampaignById(requestData.campaignId);
-    // FIX: Use v8 firestore syntax
-    const affiliateDoc = await db.collection('users').doc(requestData.affiliateId).get();
+    const affiliateDoc = await getDoc(doc(db, 'users', requestData.affiliateId));
     const affiliate = affiliateDoc.data();
 
     const newRequest = {
@@ -120,28 +112,24 @@ export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' 
         campaignName: campaign?.name || 'Unknown Campaign',
         affiliateTiktok: affiliate?.tiktokUsername || '@unknown',
         status: 'PendingApproval' as const,
-        // FIX: Use v8 serverTimestamp syntax
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
     };
-    // FIX: Use v8 firestore syntax
-    await requestsRef.add(newRequest);
+    await addDoc(requestsRef, newRequest);
     return { success: true, message: 'Request submitted successfully! It is now pending admin approval.'};
 }
 
 export const updateSampleRequestStatus = async (requestId: string, newStatus: SampleRequestStatus): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    const requestDoc = db.collection('sampleRequests').doc(requestId);
-    await requestDoc.update({ status: newStatus });
+    const requestDoc = doc(db, 'sampleRequests', requestId);
+    await updateDoc(requestDoc, { status: newStatus });
 };
 
 // LEADERBOARD
 export const fetchLeaderboard = async (): Promise<Leaderboard | null> => {
     if (!db) return null;
     const today = new Date().toISOString().split('T')[0];
-    // FIX: Use v8 firestore syntax
-    const leaderboardDoc = db.collection('leaderboard').doc(today);
-    const docSnap = await leaderboardDoc.get();
+    const leaderboardDoc = doc(db, 'leaderboard', today);
+    const docSnap = await getDoc(leaderboardDoc);
     return docToModel(docSnap) as Leaderboard | null;
 };
 
@@ -149,48 +137,44 @@ export const fetchLeaderboard = async (): Promise<Leaderboard | null> => {
 // RESOURCES
 export const fetchResources = async (): Promise<ResourceArticle[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    const resourcesCol = db.collection('articles'); // Spec calls it 'articles'
-    const snapshot = await resourcesCol.orderBy('createdAt', 'desc').get();
+    const resourcesCol = collection(db, 'articles');
+    const q = query(resourcesCol, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as ResourceArticle);
 };
 
 export const addResource = async (article: Omit<ResourceArticle, 'id'>): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 serverTimestamp syntax
-    const data = { ...article, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
-    await db.collection('articles').add(data);
+    const data = { ...article, createdAt: serverTimestamp() };
+    await addDoc(collection(db, 'articles'), data);
 };
 
 export const updateResource = async (article: ResourceArticle): Promise<void> => {
     if (!db) return;
     const { id, ...data } = article;
-    // FIX: Use v8 firestore syntax
-    await db.collection('articles').doc(id).update(data);
+    await updateDoc(doc(db, 'articles', id), data);
 };
 
 export const deleteResource = async (articleId: string): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    await db.collection('articles').doc(articleId).delete();
+    await deleteDoc(doc(db, 'articles', articleId));
 };
 
 // INCENTIVES
 export const fetchIncentives = async (): Promise<IncentiveCampaign[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    const incentivesCol = db.collection('incentiveCampaigns');
-    const snapshot = await incentivesCol.orderBy('startDate', 'desc').get();
+    const incentivesCol = collection(db, 'incentiveCampaigns');
+    const q = query(incentivesCol, orderBy('startDate', 'desc'));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as IncentiveCampaign);
 };
 
 export const joinIncentiveCampaign = async (campaignId: string): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    const campaignRef = db.collection("incentiveCampaigns").doc(campaignId);
-    await db.runTransaction(async (transaction) => {
+    const campaignRef = doc(db, "incentiveCampaigns", campaignId);
+    await runTransaction(db, async (transaction) => {
         const campaignDoc = await transaction.get(campaignRef);
-        if (!campaignDoc.exists) {
+        if (!campaignDoc.exists()) {
             throw "Campaign does not exist!";
         }
         
@@ -200,8 +184,9 @@ export const joinIncentiveCampaign = async (campaignId: string): Promise<void> =
         }
 
         const newJoinedCount = (campaignData.joinedAffiliates || 0) + 1;
-        // FIX: Use v8 increment syntax
-        const data = { joinedAffiliates: firebase.firestore.FieldValue.increment(1) } as any;
+        const data: { joinedAffiliates: any; status?: 'Active' } = { 
+            joinedAffiliates: increment(1)
+        };
 
         if (newJoinedCount >= campaignData.minAffiliates) {
             data.status = 'Active';
@@ -217,40 +202,35 @@ export const addIncentive = async (incentive: Omit<IncentiveCampaign, 'id' | 'jo
         joinedAffiliates: 0,
         status: 'Pending' as const,
     };
-    // FIX: Use v8 firestore syntax
-    await db.collection('incentiveCampaigns').add(data);
+    await addDoc(collection(db, 'incentiveCampaigns'), data);
 };
 
 export const updateIncentive = async (incentive: IncentiveCampaign): Promise<void> => {
     if (!db) return;
     const { id, ...data } = incentive;
-    // FIX: Use v8 firestore syntax
-    await db.collection('incentiveCampaigns').doc(id).update(data as any);
+    await updateDoc(doc(db, 'incentiveCampaigns', id), data as any);
 };
 
 export const deleteIncentive = async (incentiveId: string): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    await db.collection('incentiveCampaigns').doc(incentiveId).delete();
+    await deleteDoc(doc(db, 'incentiveCampaigns', incentiveId));
 };
 
 
 // TICKETS
 export const fetchTickets = async (affiliateId?: string): Promise<Ticket[]> => {
     if (!db) return [];
-    // FIX: Use v8 firestore query syntax
-    const ticketsCol = db.collection('tickets');
-    const query = affiliateId 
-        ? ticketsCol.where('affiliateId', '==', affiliateId).orderBy('createdAt', 'desc')
-        : ticketsCol.orderBy('createdAt', 'desc');
-    const snapshot = await query.get();
+    const ticketsCol = collection(db, 'tickets');
+    const q = affiliateId 
+        ? query(ticketsCol, where('affiliateId', '==', affiliateId), orderBy('createdAt', 'desc'))
+        : query(ticketsCol, orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as Ticket);
 };
 
 export const createTicket = async (data: { affiliateId: string; subject: string; message: string }): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    const affiliateDoc = await db.collection('users').doc(data.affiliateId).get();
+    const affiliateDoc = await getDoc(doc(db, 'users', data.affiliateId));
     const affiliate = affiliateDoc.data();
 
     const newTicket = {
@@ -258,33 +238,29 @@ export const createTicket = async (data: { affiliateId: string; subject: string;
         affiliateTiktok: affiliate?.tiktokUsername || '@unknown',
         subject: data.subject,
         status: 'Pending' as const,
-        // FIX: Use v8 serverTimestamp and Timestamp syntax
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
         messages: [{
             sender: 'Affiliate' as const,
             text: data.message,
-            timestamp: firebase.firestore.Timestamp.now()
+            timestamp: Timestamp.now()
         }]
     };
-    // FIX: Use v8 firestore syntax
-    await db.collection('tickets').add(newTicket);
+    await addDoc(collection(db, 'tickets'), newTicket);
 };
 
 export const addMessageToTicket = async (ticketId: string, message: { sender: 'Admin' | 'Affiliate'; text: string }): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    const ticketRef = db.collection("tickets").doc(ticketId);
+    const ticketRef = doc(db, "tickets", ticketId);
 
-    await db.runTransaction(async (transaction) => {
+    await runTransaction(db, async (transaction) => {
         const ticketDoc = await transaction.get(ticketRef);
-        if (!ticketDoc.exists) throw "Ticket not found";
+        if (!ticketDoc.exists()) throw "Ticket not found";
         
         const ticketData = ticketDoc.data();
         if (!ticketData) throw "Ticket data missing";
 
         const messages = ticketData.messages || [];
-        // FIX: Use v8 Timestamp syntax
-        const newMessage = { ...message, timestamp: firebase.firestore.Timestamp.now() };
+        const newMessage = { ...message, timestamp: Timestamp.now() };
         messages.push(newMessage);
         
         let newStatus = ticketData.status;
@@ -300,8 +276,7 @@ export const addMessageToTicket = async (ticketId: string, message: { sender: 'A
 
 export const updateTicketStatus = async (ticketId: string, status: TicketStatus): Promise<void> => {
     if (!db) return;
-    // FIX: Use v8 firestore syntax
-    await db.collection('tickets').doc(ticketId).update({ status });
+    await updateDoc(doc(db, 'tickets', ticketId), { status });
 };
 
 
