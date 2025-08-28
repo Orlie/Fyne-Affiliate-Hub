@@ -1,5 +1,8 @@
-// FIX: Use namespace import for `firebase/app` as named imports are failing to resolve.
-import * as firebase from "firebase/app";
+// Fix: Use the Firebase compat library for app initialization to resolve module errors.
+// The v9 modular SDK functions used in the rest of the app are compatible with the app instance created here.
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -22,11 +25,13 @@ let db;
 
 if (isFirebaseConfigured) {
   // This prevents re-initializing the app on hot reloads in development
-  if (!firebase.getApps().length) {
+  // Use v8 compat API for app management
+  if (!firebase.apps.length) {
     app = firebase.initializeApp(firebaseConfig);
   } else {
-    app = firebase.getApp();
+    app = firebase.app();
   }
+  // The app object is compatible with v9 modular functions
   auth = getAuth(app);
   db = getFirestore(app);
 } else {
