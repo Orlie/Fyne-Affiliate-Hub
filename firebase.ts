@@ -1,5 +1,6 @@
-// FIX: The namespace import `import * as firebase` is incorrect for the Firebase v9+ modular SDK. Switched to named imports.
-import { initializeApp, getApps, getApp } from "firebase/app";
+// FIX: The import style for `firebase/app` has been changed to a namespace import
+// to resolve issues with missing named exports in this project's specific Firebase version.
+import * as firebase from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -22,11 +23,11 @@ let db;
 
 if (isFirebaseConfigured) {
   // This prevents re-initializing the app on hot reloads
-  // FIX: With modular imports, functions are called directly instead of as methods on a namespace.
-  if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
+  // FIX: Functions from `firebase/app` are now called via the `firebase` namespace.
+  if (!firebase.getApps().length) {
+    app = firebase.initializeApp(firebaseConfig);
   } else {
-    app = getApp();
+    app = firebase.getApp();
   }
   auth = getAuth(app);
   db = getFirestore(app);
