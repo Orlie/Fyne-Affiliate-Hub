@@ -28,8 +28,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     // FIX: Use v8 onAuthStateChanged syntax
-    // FIX: Correctly type the firebase user object using `firebase.auth.User`.
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: firebase.auth.User | null) => {
+    // FIX: Correctly type the firebase user object using `firebase.User`.
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: firebase.User | null) => {
       if (firebaseUser && db) {
         try {
           // FIX: Use v8 firestore syntax

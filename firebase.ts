@@ -1,8 +1,10 @@
-// Standard Firebase v8 imports
-// FIX: Use Firebase v8 compatibility libraries to work with modern Firebase SDKs.
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/firestore";
+// FIX: Add type augmentations for firebase auth and firestore services.
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+
+// The global 'firebase' object is now loaded from index.html via script tags.
+// This file initializes the services from that global object.
+declare var firebase: any; // Inform TypeScript that 'firebase' is a global variable.
 
 // Your web app's Firebase configuration is now hardcoded for reliability
 const firebaseConfig = {
@@ -17,8 +19,8 @@ const firebaseConfig = {
 
 const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-let auth: firebase.auth.Auth;
-let db: firebase.firestore.Firestore;
+let auth: any;
+let db: any;
 
 if (isFirebaseConfigured) {
   // This prevents re-initializing the app on hot reloads in development
@@ -26,7 +28,7 @@ if (isFirebaseConfigured) {
     firebase.initializeApp(firebaseConfig);
   }
   
-  // Get the auth and firestore instances using standard v8 syntax
+  // Get the auth and firestore instances using standard v8 syntax from the global object
   auth = firebase.auth();
   db = firebase.firestore();
 } else {
