@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard';
 
@@ -32,6 +33,7 @@ const AppRoutes: React.FC = () => {
     <HashRouter>
       <Routes>
         <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
+        <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" />} />
         <Route
           path="/*"
           element={

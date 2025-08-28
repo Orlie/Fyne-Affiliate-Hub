@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Button from '../components/ui/Button';
@@ -31,22 +32,6 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDemoLogin = async (role: 'Admin' | 'Affiliate') => {
-      const demoEmail = role === 'Admin' ? 'admin@fyne.com' : 'creator@email.com';
-      // In a real app, you wouldn't hardcode passwords. This is for demo convenience.
-      const demoPassword = 'password123'; 
-      
-      setError('');
-      setLoading(true);
-      try {
-          await login(demoEmail, demoPassword);
-      } catch (err) {
-          setError(`Could not log in as ${role}. Please ensure the user '${demoEmail}' with password '${demoPassword}' exists in your Firebase Authentication project.`);
-      } finally {
-        setLoading(false);
-      }
   };
 
   return (
@@ -90,18 +75,15 @@ const LoginPage: React.FC = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              Or use the demo buttons below.
-            </p>
-            <div className="flex flex-col space-y-4">
-              <Button type="button" onClick={() => handleDemoLogin('Affiliate')} className="w-full" data-testid="login-affiliate-button" disabled={loading}>
-                Log in as Affiliate (Demo)
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => handleDemoLogin('Admin')} className="w-full" data-testid="login-admin-button" disabled={loading}>
-                Log in as Admin (Demo)
-              </Button>
-            </div>
           </form>
+          <div className="text-center mt-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Don't have an account?{' '}
+                  <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
+                      Sign up
+                  </Link>
+              </p>
+          </div>
         </div>
       </div>
     </div>

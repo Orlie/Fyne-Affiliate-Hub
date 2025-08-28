@@ -1,41 +1,38 @@
 
-
-import firebase from "firebase/compat/app";
-import "firebase/compat/auth";
-import "firebase/compat/firestore";
+// FIX: Switched to a namespace import for `firebase/app` to resolve errors where named exports like `initializeApp` were not found.
+import * as firebaseApp from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// IMPORTANT: These environment variables must be configured in your deployment environment (e.g., Netlify).
-// They are not available in the code directly but are substituted during the build/runtime process.
+// Your web app's Firebase configuration is now hardcoded for reliability
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
+  apiKey: "AIzaSyBVtZFT-rqFJbZj0goU07wgAweuSDc5fgI",
+  authDomain: "fyne-affiliate-hub.firebaseapp.com",
+  projectId: "fyne-affiliate-hub",
+  storageBucket: "fyne-affiliate-hub.appspot.com",
+  messagingSenderId: "468746870595",
+  appId: "1:468746870595:web:cd53c29e2b0b10e5dbd9f6",
+  measurementId: "G-7287356S0G"
 };
 
-// A check to ensure Firebase is configured before initialization
 const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-let app: firebase.app.App | null = null;
+let app;
+let auth;
+let db;
 
 if (isFirebaseConfigured) {
-    if (firebase.apps.length === 0) {
-        app = firebase.initializeApp(firebaseConfig);
-    } else {
-        app = firebase.app();
-    }
+  // This prevents re-initializing the app on hot reloads
+  if (!firebaseApp.getApps().length) {
+    app = firebaseApp.initializeApp(firebaseConfig);
+  } else {
+    app = firebaseApp.getApp();
+  }
+  auth = getAuth(app);
+  db = getFirestore(app);
 } else {
-    console.warn("Firebase configuration is missing or incomplete. Please set up your environment variables. Some features will be disabled.");
+  console.warn("Firebase configuration is missing or incomplete. Some features will be disabled.");
 }
 
-// Export Firebase services, which will be null if configuration is missing
-// The v9 modular services can be retrieved using the compat app instance.
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
-
-// Export a flag to check if Firebase is enabled throughout the app
-export const FIREBASE_ENABLED = isFirebaseConfigured && !!app;
+export { auth, db };
+export const FIREBASE_ENABLED = isFirebaseConfigured;

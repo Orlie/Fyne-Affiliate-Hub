@@ -6,6 +6,8 @@ export type Theme = 'light' | 'dark';
 export interface User {
   uid: string;
   email: string;
+  displayName?: string;
+  username?: string;
   role: UserRole;
   discordUsername?: string;
   tiktokUsername?: string;
@@ -13,6 +15,7 @@ export interface User {
   status?: 'Verified' | 'Banned';
   cumulativeGMV?: number;
   approvedVideoCount?: number;
+  createdAt?: Date;
 }
 
 export type SampleRequestStatus = 'PendingApproval' | 'PendingShowcase' | 'PendingOrder' | 'Shipped' | 'Rejected';
