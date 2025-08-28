@@ -1,6 +1,5 @@
-
-// FIX: Switched to a namespace import for `firebase/app` to resolve errors where named exports like `initializeApp` were not found.
-import * as firebaseApp from "firebase/app";
+// FIX: Switched to named imports for firebase/app, as the previous namespace import was causing errors.
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -23,10 +22,11 @@ let db;
 
 if (isFirebaseConfigured) {
   // This prevents re-initializing the app on hot reloads
-  if (!firebaseApp.getApps().length) {
-    app = firebaseApp.initializeApp(firebaseConfig);
+  // FIX: Using named imports directly to initialize Firebase.
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
   } else {
-    app = firebaseApp.getApp();
+    app = getApp();
   }
   auth = getAuth(app);
   db = getFirestore(app);
