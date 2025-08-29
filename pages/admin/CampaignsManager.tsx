@@ -2,16 +2,21 @@
 
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { Campaign } from '../../types';
-import { fetchAllCampaignsAdmin } from '../../services/mockApi';
+import { fetchAllCampaignsAdmin, parseAndSyncCampaigns } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
+import Textarea from '../../components/ui/Textarea';
 
 const CampaignsManager: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [csvData, setCsvData] = useState('');
   
   useEffect(() => {
     loadCampaigns();
@@ -28,12 +33,72 @@ const CampaignsManager: React.FC = () => {
         setLoading(false);
     }
   };
+  
+  const handleDownloadTemplate = () => {
+    const headers = "id,category,name,imageUrl,productUrl,shareLink,commission,active,adminOrderLink";
+    const exampleRow = "PROD001,Skincare,Vitamin C Serum,https://example.com/image.jpg,https://example.com/product,https://example.com/share,15,true,https://example.com/admin_order";
+    const csvContent = `data:text/csv;charset=utf-8,${headers}\n${exampleRow}`;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "campaign_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSync = async () => {
+    if (!csvData.trim()) {
+        setSyncMessage('Please paste data from your spreadsheet before syncing.');
+        return;
+    }
+    setIsSyncing(true);
+    setSyncMessage('Parsing data with AI and updating database...');
+    const result = await parseAndSyncCampaigns(csvData);
+    setSyncMessage(result.message);
+    if (result.success) {
+        setCsvData('');
+        // Reload campaigns to show the updated list
+        await loadCampaigns();
+    }
+    setIsSyncing(false);
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Campaigns Management</h1>
-      <p className="mt-2 text-gray-600 dark:text-gray-400">View all active and inactive campaigns.</p>
+      <p className="mt-2 text-gray-600 dark:text-gray-400">Manage campaigns and sync in bulk from a spreadsheet.</p>
       
+       <Card className="mt-8">
+          <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">Bulk Campaign Sync</h2>
+                    <p className="mt-2 text-gray-600 dark:text-gray-400 text-sm">
+                        Update campaigns by pasting data from a Google Sheet. Data must be in CSV format and include a header row. The 'id' column is used to match and update existing campaigns.
+                    </p>
+                    <Button variant="secondary" onClick={handleDownloadTemplate} className="mt-4">
+                        Download CSV Template
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                     <Textarea 
+                        label="Paste Spreadsheet Data (CSV format)"
+                        rows={8}
+                        value={csvData}
+                        onChange={(e) => setCsvData(e.target.value)}
+                        placeholder="id,category,name,imageUrl..."
+                        disabled={isSyncing}
+                     />
+                     <Button onClick={handleSync} disabled={isSyncing} className="w-full">
+                        {isSyncing ? 'Syncing...' : 'Sync Campaigns'}
+                     </Button>
+                     {syncMessage && <p className="text-sm text-center text-gray-500 dark:text-gray-400 h-4">{syncMessage}</p>}
+                  </div>
+              </div>
+          </CardContent>
+      </Card>
+
       <div className="mt-8">
         <h2 className="text-2xl font-bold">Current Campaigns ({campaigns.length})</h2>
         <div className="mt-4 flow-root">

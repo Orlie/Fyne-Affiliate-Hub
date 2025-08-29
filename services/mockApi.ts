@@ -1,4 +1,5 @@
 
+
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus
@@ -6,8 +7,9 @@ import {
 import { db } from '../firebase';
 import { 
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
-    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot
+    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch
 } from 'firebase/firestore';
+import { GoogleGenAI, Type } from '@google/genai';
 
 
 // --- Helper Functions ---
@@ -58,6 +60,78 @@ This ensures your admin credentials are never exposed on the client-side.`);
 
 
 // CAMPAIGNS
+export const parseAndSyncCampaigns = async (csvText: string): Promise<{success: boolean, message: string}> => {
+    if (!process.env.API_KEY) {
+        return { success: false, message: "API_KEY is not configured for the AI parser." };
+    }
+    if (!db) return { success: false, message: 'Database not connected.' };
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const prompt = `Parse the following CSV data into a JSON array of objects. The CSV headers are: id,category,name,imageUrl,productUrl,shareLink,commission,active,adminOrderLink. Ensure 'commission' is a number and 'active' is a boolean.\n\n${csvText}`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            category: { type: Type.STRING },
+                            name: { type: Type.STRING },
+                            imageUrl: { type: Type.STRING },
+                            productUrl: { type: Type.STRING },
+                            shareLink: { type: Type.STRING },
+                            commission: { type: Type.NUMBER },
+                            active: { type: Type.BOOLEAN },
+                            adminOrderLink: { type: Type.STRING },
+                        },
+                        required: ['id', 'name', 'category', 'active', 'commission']
+                    }
+                }
+            }
+        });
+        
+        const campaignsToSync = JSON.parse(response.text);
+
+        if (!Array.isArray(campaignsToSync) || campaignsToSync.length === 0) {
+            return { success: false, message: "Could not parse any valid campaign data from the provided text." };
+        }
+
+        const batch = writeBatch(db);
+        const campaignsCol = collection(db, 'campaigns');
+
+        campaignsToSync.forEach((campaign: any) => {
+            if (campaign.id && typeof campaign.id === 'string' && campaign.name) {
+                const docRef = doc(campaignsCol, campaign.id.trim());
+                const campaignData = {
+                    category: campaign.category || 'Uncategorized',
+                    name: campaign.name,
+                    imageUrl: campaign.imageUrl || '',
+                    productUrl: campaign.productUrl || '',
+                    shareLink: campaign.shareLink || '',
+                    commission: typeof campaign.commission === 'number' ? campaign.commission : 0,
+                    active: campaign.active === true,
+                    adminOrderLink: campaign.adminOrderLink || ''
+                };
+                batch.set(docRef, campaignData, { merge: true });
+            }
+        });
+
+        await batch.commit();
+        return { success: true, message: `Sync successful. ${campaignsToSync.length} campaigns were processed.` };
+
+    } catch (error) {
+        console.error("Error during campaign sync:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `An error occurred while syncing campaigns: ${errorMessage}` };
+    }
+};
+
 export const fetchCampaigns = async (): Promise<Campaign[]> => {
     if (!db) return [];
     const campaignsCol = collection(db, 'campaigns');
