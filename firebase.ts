@@ -1,8 +1,10 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+// FIX: Changed firebase import path to use the @firebase scope to resolve module export error.
+import { initializeApp } from "@firebase/app";
 // FIX: Changed import path from 'firebase/auth' to '@firebase/auth' to resolve missing export members.
 import { getAuth } from "@firebase/auth";
-import { getFirestore } from "firebase/firestore";
+// FIX: Changed firebase import path to use the @firebase scope for consistency.
+import { getFirestore } from "@firebase/firestore";
 
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries

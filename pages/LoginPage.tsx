@@ -65,17 +65,24 @@ const LoginPage: React.FC = () => {
               data-testid="email-input"
               disabled={loading}
             />
-            <Input
-              id="password"
-              label="Password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              data-testid="password-input"
-              disabled={loading}
-            />
+            <div>
+                <Input
+                  id="password"
+                  label="Password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  data-testid="password-input"
+                  disabled={loading}
+                />
+                 <div className="text-right text-sm mt-1">
+                    <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
+                        Forgot password?
+                    </Link>
+                </div>
+            </div>
             {error && <p className="text-center text-sm text-red-500">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing In...' : 'Sign In'}

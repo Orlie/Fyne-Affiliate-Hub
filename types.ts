@@ -106,3 +106,10 @@ export interface Ticket {
   createdAt: Date;
   messages: TicketMessage[];
 }
+
+export interface PasswordResetRequest {
+  id: string;
+  email: string;
+  status: 'pending' | 'resolved';
+  createdAt: Date;
+}

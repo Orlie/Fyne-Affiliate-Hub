@@ -1,10 +1,10 @@
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Button from '../../components/ui/Button';
-import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon } from '../../components/icons/Icons';
+import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon, KeyIcon } from '../../components/icons/Icons';
 import SampleRequestQueue from './SampleRequestQueue';
 import AiChatbotManager from './AiChatbotManager';
 import CampaignsManager from './CampaignsManager';
@@ -13,14 +13,23 @@ import ResourcesManager from './ResourcesManager';
 import IncentivesManager from './IncentivesManager';
 import TicketsManager from './TicketsManager';
 import AffiliatesManager from './AffiliatesManager';
+import PasswordResetManager from './PasswordResetManager';
+import { listenToPasswordResetRequests } from '../../services/mockApi';
+import { PasswordResetRequest } from '../../types';
 
 
-type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics';
+type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<AdminTab>('requests');
+  const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = listenToPasswordResetRequests(setResetRequests);
+    return () => unsubscribe();
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -40,6 +49,8 @@ const AdminDashboard: React.FC = () => {
         return <AffiliatesManager />;
       case 'ai-chatbot':
         return <AiChatbotManager />;
+      case 'password-resets':
+        return <PasswordResetManager requests={resetRequests} />;
        case 'analytics':
         return <div className="p-8 text-gray-800 dark:text-gray-200">Analytics & Reporting (Coming Soon)</div>;
       default:
@@ -62,6 +73,7 @@ const AdminDashboard: React.FC = () => {
           <AdminNavLink text="Resources" icon={BookOpenIcon} active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} />
           <AdminNavLink text="Tickets" icon={TicketIcon} active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} />
           <AdminNavLink text="Incentives" icon={StarIcon} active={activeTab === 'incentives'} onClick={() => setActiveTab('incentives')} />
+          <AdminNavLink text="Password Resets" icon={KeyIcon} active={activeTab === 'password-resets'} onClick={() => setActiveTab('password-resets')} badge={resetRequests.length > 0 ? resetRequests.length : undefined} />
           <AdminNavLink text="AI Chatbot" icon={SparklesIcon} active={activeTab === 'ai-chatbot'} onClick={() => setActiveTab('ai-chatbot')} />
           <AdminNavLink text="Analytics" icon={ChartBarIcon} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
         </nav>
@@ -94,16 +106,24 @@ interface AdminNavLinkProps {
     active: boolean;
     onClick: () => void;
     icon: React.FC<{ className?: string }>;
+    badge?: number;
 }
-const AdminNavLink: React.FC<AdminNavLinkProps> = ({ text, active, onClick, icon: Icon }) => (
+const AdminNavLink: React.FC<AdminNavLinkProps> = ({ text, active, onClick, icon: Icon, badge }) => (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
+      className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
         active ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
       }`}
     >
-      <Icon className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
-      <span>{text}</span>
+      <div className="flex items-center">
+        <Icon className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+        <span>{text}</span>
+      </div>
+      {badge && (
+        <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+            {badge}
+        </span>
+      )}
     </button>
 )
 

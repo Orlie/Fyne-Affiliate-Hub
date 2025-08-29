@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AffiliateDashboard from './pages/affiliate/AffiliateDashboard';
 
@@ -34,6 +35,7 @@ const AppRoutes: React.FC = () => {
       <Routes>
         <Route path="/login" element={!user ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/register" element={!user ? <RegisterPage /> : <Navigate to="/" />} />
+        <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" />} />
         <Route
           path="/*"
           element={

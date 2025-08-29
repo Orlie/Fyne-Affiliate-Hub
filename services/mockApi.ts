@@ -2,13 +2,14 @@
 
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
-    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry
+    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest
 } from '../types';
 import { db } from '../firebase';
+// FIX: Updated the `firebase/firestore` import to use the `@firebase/firestore` scope for consistency.
 import { 
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
-    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot, setDoc
-} from 'firebase/firestore';
+    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot, setDoc, limit
+} from '@firebase/firestore';
 
 
 // --- Helper Functions ---
@@ -56,6 +57,16 @@ export const updateAffiliateStatus = async (userId: string, newStatus: 'Verified
     await updateDoc(userDoc, { status: newStatus });
 };
 
+const getUserByEmail = async (email: string): Promise<User | null> => {
+    if (!db) return null;
+    const q = query(collection(db, 'users'), where('email', '==', email), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    return docToModel(snapshot.docs[0]) as User;
+}
+
 export const resetUserPasswordAdmin = async (userId: string): Promise<void> => {
     alert(`This is a high-security action.
     
@@ -68,6 +79,45 @@ To implement this:
 
 This ensures your admin credentials are never exposed on the client-side.`);
     console.log(`Placeholder: Would trigger a Cloud Function to reset password for user: ${userId}`);
+};
+
+// PASSWORD RESET
+export const requestPasswordReset = async (email: string): Promise<void> => {
+    if (!db) return;
+    // Check if a pending request already exists for this email to prevent spam
+    const requestsRef = collection(db, 'passwordResetRequests');
+    const q = query(requestsRef, where('email', '==', email), where('status', '==', 'pending'));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        await addDoc(requestsRef, {
+            email,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        });
+    }
+    // If a request already exists, we do nothing.
+};
+
+export const listenToPasswordResetRequests = (onUpdate: (requests: PasswordResetRequest[]) => void): (() => void) => {
+    const q = query(collection(db, 'passwordResetRequests'), where('status', '==', 'pending'), orderBy('createdAt', 'asc'));
+    return createListener<PasswordResetRequest>(q, onUpdate);
+}
+
+export const resolvePasswordResetRequest = async (requestId: string, userEmail: string, shouldReset: boolean): Promise<void> => {
+    if (!db) return;
+    if (shouldReset) {
+        const user = await getUserByEmail(userEmail);
+        if (user) {
+            await resetUserPasswordAdmin(user.uid);
+        } else {
+            console.error(`Could not find user with email ${userEmail} to reset password.`);
+            // Still resolve the request below
+        }
+    }
+    // Mark as resolved so it disappears from the admin queue
+    const requestDoc = doc(db, 'passwordResetRequests', requestId);
+    await updateDoc(requestDoc, { status: 'resolved' });
 };
 
 

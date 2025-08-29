@@ -14,6 +14,7 @@ const RegisterPage: React.FC = () => {
     username: '',
     email: '',
     password: '',
+    confirmPassword: '',
     tiktokUsername: '',
     discordUsername: '',
   });
@@ -28,6 +29,10 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     if (Object.values(formData).some(val => val.trim() === '')) {
       setError('Please fill out all fields.');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match. Please try again.');
       return;
     }
     setError('');
@@ -71,6 +76,7 @@ const RegisterPage: React.FC = () => {
                     <Input id="username" label="Username" type="text" required value={formData.username} onChange={handleChange} disabled={loading} />
                     <Input id="email" label="Email address" type="email" required value={formData.email} onChange={handleChange} disabled={loading} />
                     <Input id="password" label="Password" type="password" required value={formData.password} onChange={handleChange} disabled={loading} />
+                    <Input id="confirmPassword" label="Confirm Password" type="password" required value={formData.confirmPassword} onChange={handleChange} disabled={loading} />
                     <Input id="tiktokUsername" label="TikTok Username" type="text" placeholder="@username" required value={formData.tiktokUsername} onChange={handleChange} disabled={loading} />
                     <Input id="discordUsername" label="Discord Username" type="text" placeholder="username#1234" required value={formData.discordUsername} onChange={handleChange} disabled={loading} />
                     
