@@ -82,9 +82,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const firebaseUser = userCredential.user;
 
     if (!firebaseUser) {
-        throw new Error("Failed to create user.");
+        throw new Error("Failed to create user account.");
     }
 
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
     const userProfileData = {
         email: details.email,
         displayName: details.displayName,
@@ -96,7 +97,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         createdAt: Timestamp.now(),
     };
 
-    await setDoc(doc(db, 'users', firebaseUser.uid), userProfileData);
+    await setDoc(userDocRef, userProfileData);
+
+    // Confirm via one-shot read to ensure profile write succeeded.
+    const snap = await getDoc(userDocRef);
+    if (!snap.exists()) {
+      // If the write fails, the user is in a bad state (auth created, but no profile).
+      // We should sign them out and ask them to try again.
+      await signOut(auth);
+      throw new Error("Profile write failed after user creation. Your account was not fully created. Please try signing up again.");
+    }
     // onAuthStateChanged will automatically handle setting the new user state
   };
   
