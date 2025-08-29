@@ -1,9 +1,10 @@
 
 
 
+
 import React, { useState, useEffect } from 'react';
 import { Campaign } from '../../types';
-import { fetchAllCampaignsAdmin, syncFromGoogleSheet } from '../../services/mockApi';
+import { fetchAllCampaignsAdmin } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -11,10 +12,7 @@ import Input from '../../components/ui/Input';
 const CampaignsManager: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sheetUrl, setSheetUrl] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
-
+  
   useEffect(() => {
     loadCampaigns();
   }, []);
@@ -31,73 +29,11 @@ const CampaignsManager: React.FC = () => {
     }
   };
 
-  const handleSync = async () => {
-    if (!sheetUrl) {
-        setSyncMessage('Please enter a Google Sheet URL.');
-        return;
-    }
-    setIsSyncing(true);
-    setSyncMessage('');
-    try {
-        const syncedCampaigns = await syncFromGoogleSheet(sheetUrl);
-        if (syncedCampaigns.length > 0) {
-            setCampaigns(syncedCampaigns);
-            setSyncMessage(`Sync successful! Loaded ${syncedCampaigns.length} campaigns.`);
-        } else {
-             setSyncMessage(`Sync process initiated. This requires a backend function to complete.`);
-        }
-    } catch (error) {
-        setSyncMessage('Error syncing from Google Sheet. Please check the URL and format.');
-        console.error(error);
-    } finally {
-        setIsSyncing(false);
-    }
-  };
-  
-  const handleDownloadTemplate = () => {
-    const headers = "id,category,title,image,productUrl,shareLink,contentDocUrl,availabilityStart,availabilityEnd,commission,active,orderLink";
-    const csvContent = "data:text/csv;charset=utf-8," + headers;
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "campaign_template.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Campaigns Management</h1>
-      <p className="mt-2 text-gray-600 dark:text-gray-400">Sync and view campaign data from a Google Sheet.</p>
+      <p className="mt-2 text-gray-600 dark:text-gray-400">View all active and inactive campaigns.</p>
       
-      <Card className="mt-6">
-        <CardContent>
-            <div className="flex justify-between items-start">
-                <div>
-                    <h2 className="text-xl font-bold">Google Sheet Sync</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Paste the shareable URL of your campaign spreadsheet to import products. This will overwrite existing campaign data.</p>
-                </div>
-                <Button variant="secondary" size="sm" onClick={handleDownloadTemplate}>Download Template</Button>
-            </div>
-          <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Input
-              id="sheet-url"
-              type="url"
-              placeholder="https://docs.google.com/spreadsheets/..."
-              value={sheetUrl}
-              onChange={(e) => setSheetUrl(e.target.value)}
-              className="flex-grow w-full"
-              aria-label="Google Sheet URL"
-            />
-            <Button onClick={handleSync} disabled={isSyncing} className="w-full sm:w-auto flex-shrink-0">
-              {isSyncing ? 'Syncing...' : 'Sync Campaigns'}
-            </Button>
-          </div>
-          {syncMessage && <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{syncMessage}</p>}
-        </CardContent>
-      </Card>
-
       <div className="mt-8">
         <h2 className="text-2xl font-bold">Current Campaigns ({campaigns.length})</h2>
         <div className="mt-4 flow-root">

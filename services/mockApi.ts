@@ -286,24 +286,3 @@ export const updateTicketStatus = async (ticketId: string, status: TicketStatus)
     if (!db) return;
     await updateDoc(doc(db, 'tickets', ticketId), { status });
 };
-
-
-// --- GOOGLE SHEET SYNC (PLACEHOLDERS) ---
-
-export const syncFromGoogleSheet = async (url: string): Promise<Campaign[]> => {
-    console.log(`Syncing from: ${url}`);
-    alert("This feature requires a backend Cloud Function to securely fetch and parse the Google Sheet. This is a placeholder for the UI flow.");
-    // In a real app, this would trigger a Cloud Function that:
-    // 1. Fetches the Google Sheet data.
-    // 2. Parses the rows into Campaign objects.
-    // 3. Uses the Firebase Admin SDK to perform a batch write to the 'campaigns' collection.
-    // 4. Returns the result to the client.
-    // For now, we return an empty array to simulate a non-functional call.
-    return Promise.resolve([]);
-};
-
-export const syncLeaderboardFromGoogleSheet = async (url: string): Promise<Leaderboard | null> => {
-    console.log(`Syncing leaderboard from: ${url}`);
-    alert("This feature requires a backend Cloud Function.");
-    return Promise.resolve(null);
-};
