@@ -9,7 +9,6 @@ import {
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
     deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch
 } from 'firebase/firestore';
-import { GoogleGenAI, Type } from '@google/genai';
 
 
 // --- Helper Functions ---
@@ -62,48 +61,36 @@ This ensures your admin credentials are never exposed on the client-side.`);
 // CAMPAIGNS
 
 /**
- * Internal helper to parse CSV text with Gemini and sync to Firestore.
+ * Internal helper to parse CSV text and sync to Firestore without using AI.
  */
 const processCampaignCsv = async (csvText: string): Promise<{success: boolean, message: string}> => {
-    if (!process.env.API_KEY) {
-        return { success: false, message: "API_KEY is not configured for the AI parser." };
-    }
     if (!db) return { success: false, message: 'Database not connected.' };
 
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Parse the following CSV data into a JSON array of objects. The CSV headers are: id,category,name,imageUrl,productUrl,shareLink,commission,active,adminOrderLink. Ensure 'commission' is a number and 'active' is a boolean.\n\n${csvText}`;
+        const lines = csvText.trim().split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) {
+            return { success: false, message: "CSV is empty or contains only a header." };
+        }
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            id: { type: Type.STRING },
-                            category: { type: Type.STRING },
-                            name: { type: Type.STRING },
-                            imageUrl: { type: Type.STRING },
-                            productUrl: { type: Type.STRING },
-                            shareLink: { type: Type.STRING },
-                            commission: { type: Type.NUMBER },
-                            active: { type: Type.BOOLEAN },
-                            adminOrderLink: { type: Type.STRING },
-                        },
-                        required: ['id', 'name', 'category', 'active', 'commission']
-                    }
-                }
+        const headers = lines[0].split(',').map(h => h.trim());
+        const requiredHeaders = ['id', 'name', 'category', 'active', 'commission'];
+        for (const rh of requiredHeaders) {
+            if (!headers.includes(rh)) {
+                return { success: false, message: `Missing required CSV header: ${rh}` };
             }
-        });
+        }
         
-        const campaignsToSync = JSON.parse(response.text);
+        const campaignsToSync = lines.slice(1).map(line => {
+            const values = line.split(',');
+            const campaignObj: {[key: string]: string} = {};
+            headers.forEach((header, index) => {
+                campaignObj[header] = values[index] ? values[index].trim() : '';
+            });
+            return campaignObj;
+        });
 
-        if (!Array.isArray(campaignsToSync) || campaignsToSync.length === 0) {
-            return { success: false, message: "AI could not parse valid campaign data from the sheet." };
+        if (campaignsToSync.length === 0) {
+            return { success: false, message: "No valid campaign data rows found in the sheet." };
         }
 
         const batch = writeBatch(db);
@@ -112,14 +99,18 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
         campaignsToSync.forEach((campaign: any) => {
             if (campaign.id && typeof campaign.id === 'string' && campaign.name) {
                 const docRef = doc(campaignsCol, campaign.id.trim());
+                
+                const commission = parseFloat(campaign.commission);
+                const active = campaign.active?.toLowerCase() === 'true';
+
                 const campaignData = {
                     category: campaign.category || 'Uncategorized',
                     name: campaign.name,
                     imageUrl: campaign.imageUrl || '',
                     productUrl: campaign.productUrl || '',
                     shareLink: campaign.shareLink || '',
-                    commission: typeof campaign.commission === 'number' ? campaign.commission : 0,
-                    active: campaign.active === true,
+                    commission: !isNaN(commission) ? commission : 0,
+                    active: active,
                     adminOrderLink: campaign.adminOrderLink || '',
                     createdAt: serverTimestamp() // Add or update timestamp on sync
                 };
@@ -162,7 +153,7 @@ export const syncCampaignsFromGoogleSheet = async (sheetUrl: string): Promise<{s
         }
         const csvText = await response.text();
         
-        // 4. Pass the fetched CSV text to the AI parser and sync function
+        // 4. Pass the fetched CSV text to the parser and sync function
         return await processCampaignCsv(csvText);
 
     } catch (error) {

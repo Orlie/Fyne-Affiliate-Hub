@@ -53,7 +53,7 @@ const CampaignsManager: React.FC = () => {
         return;
     }
     setIsSyncing(true);
-    setSyncMessage('Fetching from URL, parsing with AI, and updating database...');
+    setSyncMessage('Fetching from URL, parsing data, and updating database...');
     const result = await syncCampaignsFromGoogleSheet(sheetUrl);
     setSyncMessage(result.message);
     if (result.success) {
