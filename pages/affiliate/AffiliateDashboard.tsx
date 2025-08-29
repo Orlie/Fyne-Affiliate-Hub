@@ -45,9 +45,9 @@ const AffiliateDashboard: React.FC = () => {
 
     return (
         <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-black font-sans">
-            <header className="p-4 text-center">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                  Welcome, {user?.tiktokUsername || 'Creator'}!
+            <header className="p-4 bg-white dark:bg-gray-900/50 sticky top-0 z-10 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  Welcome, {user?.displayName?.split(' ')[0] || 'Creator'}!
                 </h1>
             </header>
 
@@ -66,7 +66,7 @@ const AffiliateDashboard: React.FC = () => {
             </main>
 
             {/* Bottom Tab Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex justify-around">
+            <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 flex justify-around">
                 {TABS.map(tab => (
                     <button
                         key={tab.id}

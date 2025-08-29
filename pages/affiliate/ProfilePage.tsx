@@ -135,7 +135,7 @@ interface ProfileMenuItemProps {
 
 const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({ label, icon: Icon, to }) => {
     return (
-        <Link to={to} className="flex items-center justify-between py-3 group">
+        <Link to={to} className="flex items-center justify-between py-4 group">
             <div className="flex items-center">
                 <Icon className="h-6 w-6 text-gray-500 dark:text-gray-400 group-hover:text-primary-600" />
                 <span className="ml-4 font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600">{label}</span>

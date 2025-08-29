@@ -4,6 +4,7 @@ import { listenToSampleRequestsForAffiliate, fetchCampaignById, affiliateConfirm
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import { CheckCircleIcon } from '../../components/icons/Icons';
 
 interface Task extends SampleRequest {
     campaign?: Campaign;
@@ -72,8 +73,9 @@ const TasksPage: React.FC = () => {
             
             {tasks.length === 0 ? (
                 <Card>
-                    <CardContent className="text-center py-10">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">All Caught Up!</h3>
+                    <CardContent className="text-center py-10 flex flex-col items-center">
+                        <CheckCircleIcon className="h-12 w-12 text-green-500" />
+                        <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">All Caught Up!</h3>
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">You have no pending tasks. Check the Campaigns tab to request new samples.</p>
                     </CardContent>
                 </Card>
@@ -82,17 +84,19 @@ const TasksPage: React.FC = () => {
                     {tasks.map(task => (
                         <Card key={task.id}>
                             <CardContent>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-start gap-4">
                                     <img 
                                         src={task.campaign?.imageUrl} 
                                         alt={task.campaign?.name} 
-                                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0" 
+                                        className="w-24 h-24 rounded-lg object-cover flex-shrink-0" 
                                     />
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium text-green-600 dark:text-green-400">ADMIN APPROVED</p>
-                                        <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2">{task.campaign?.name}</h3>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                            Next step: Add this product to your showcase.
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            Approved
+                                        </span>
+                                        <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2 mt-1">{task.campaign?.name}</h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                                            Your sample request was approved! Please add this product to your showcase to continue.
                                         </p>
                                     </div>
                                 </div>

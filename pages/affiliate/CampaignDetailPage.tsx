@@ -107,113 +107,122 @@ const CampaignDetailPage: React.FC = () => {
     const currentStep = currentStatusInfo ? currentStatusInfo.step : 0;
 
     return (
-        <div className="p-4 space-y-4">
-             <Link to="/campaigns" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
+        <div className="p-4 space-y-6">
+             <Link to="/campaigns" className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium mb-2">
                 <ChevronLeftIcon className="h-5 w-5 mr-1" />
                 Back to Campaigns
             </Link>
-
-            <Card className="overflow-hidden">
-                <img className="h-56 w-full object-cover" src={campaign.imageUrl} alt={campaign.name} />
-                <CardContent>
-                    <div className="flex justify-between items-start">
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{campaign.name}</h1>
-                         <div className="text-right">
-                            <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">{campaign.commission}%</p>
-                            <p className="text-xs text-gray-500">Commission</p>
-                        </div>
-                    </div>
-                    <p className="mt-2 text-gray-600 dark:text-gray-400">
-                        View the full product page <a href={campaign.productUrl} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">here</a>.
-                    </p>
-                    {campaign.contentDocUrl && (
-                        <a href={campaign.contentDocUrl} target="_blank" rel="noopener noreferrer" className="block mt-4">
-                            <Button variant="secondary" className="w-full flex items-center justify-center">
-                                <LightbulbIcon className="h-5 w-5 mr-2" />
-                                Content Inspo
-                            </Button>
-                        </a>
-                    )}
-                </CardContent>
-            </Card>
             
-            {request && (
-                <Card>
+            <Section title="Product Details">
+                <Card className="overflow-hidden">
+                    <img className="h-56 w-full object-cover" src={campaign.imageUrl} alt={campaign.name} />
                     <CardContent>
-                        <h2 className="text-lg font-bold">Request Status</h2>
-                        <div className="mt-4 flex justify-between items-center text-xs text-center">
-                            {STATUS_STEPS.map((label, index) => {
-                                const stepNumber = index + 1;
-                                const isActive = stepNumber <= currentStep;
-                                const isCurrent = stepNumber === currentStep;
-                                return (
-                                    <React.Fragment key={label}>
-                                        <div className="flex flex-col items-center">
-                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${isActive ? 'bg-primary-600 border-primary-600 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
-                                                {stepNumber}
-                                            </div>
-                                            <p className={`mt-1 font-semibold ${isCurrent ? 'text-primary-600 dark:text-primary-400' : (isActive ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500')}`}>{label}</p>
-                                        </div>
-                                        {stepNumber < STATUS_STEPS.length && <div className={`flex-1 h-0.5 mt-[-1rem] ${isActive && stepNumber < currentStep ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>}
-                                    </React.Fragment>
-                                );
-                            })}
+                        <div className="flex justify-between items-start">
+                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{campaign.name}</h1>
+                             <div className="text-right">
+                                <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">{campaign.commission}%</p>
+                                <p className="text-xs text-gray-500">Commission</p>
+                            </div>
                         </div>
-                        {request.status === 'Rejected' && <p className="text-center text-red-500 mt-2">Your request was rejected. Please check your tickets for more information.</p>}
+                        <p className="mt-2 text-gray-600 dark:text-gray-400">
+                            View the full product page <a href={campaign.productUrl} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">here</a>.
+                        </p>
+                        {campaign.contentDocUrl && (
+                            <a href={campaign.contentDocUrl} target="_blank" rel="noopener noreferrer" className="block mt-4">
+                                <Button variant="secondary" className="w-full flex items-center justify-center">
+                                    <LightbulbIcon className="h-5 w-5 mr-2" />
+                                    Content Inspo
+                                </Button>
+                            </a>
+                        )}
                     </CardContent>
                 </Card>
+            </Section>
+            
+            {request && (
+                <Section title="Request Status">
+                    <Card>
+                        <CardContent>
+                            <div className="relative pt-8">
+                                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 dark:bg-gray-700" style={{transform: 'translateY(-50%)'}}></div>
+                                <div className="absolute top-1/2 left-0 h-0.5 bg-primary-600" style={{transform: 'translateY(-50%)', width: `${((currentStep - 1) / (STATUS_STEPS.length - 1)) * 100}%`}}></div>
+                                <div className="flex justify-between items-start relative">
+                                    {STATUS_STEPS.map((label, index) => {
+                                        const stepNumber = index + 1;
+                                        const isActive = stepNumber <= currentStep;
+                                        const isCurrent = stepNumber === currentStep;
+                                        return (
+                                            <div key={label} className="flex flex-col items-center text-center w-1/4">
+                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isActive ? 'bg-primary-600 border-primary-600' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'}`}>
+                                                    {isActive && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                                </div>
+                                                <p className={`mt-2 text-xs font-semibold ${isCurrent ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}>{label}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            {request.status === 'Rejected' && <p className="text-center text-red-500 mt-4 text-sm font-medium">Your request was rejected. Please check your tickets for more information.</p>}
+                        </CardContent>
+                    </Card>
+                </Section>
             )}
 
-            <Card>
-                <CardContent>
-                    <h2 className="text-lg font-bold">Sample Request</h2>
-                    
-                    {!request ? (
-                        <>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Submit a new Fyne Skincare video to request a free sample of this product.</p>
-                            <form onSubmit={handleRequestSubmit} className="mt-6 space-y-4">
-                                <Input label="Fyne Video URL" placeholder="https://tiktok.com/video/..." value={fyneVideoUrl} onChange={e => setFyneVideoUrl(e.target.value)} required data-testid="fyne-video-url-input" />
-                                <Input label="Ad Code" placeholder="FYNE123" value={adCode} onChange={e => setAdCode(e.target.value)} required data-testid="ad-code-input"/>
-                                {error && <p className="text-red-500 text-sm">{error}</p>}
-                                {successMessage && <p className="text-green-500 text-sm">{successMessage}</p>}
-                                <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Submit Request'}</Button>
-                            </form>
-                        </>
-                    ) : (
-                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                           Your request is being processed. You can monitor its progress in the status tracker above.
-                         </p>
-                    )}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardContent>
-                    <h2 className="text-lg font-bold">Creator Actions</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Once your sample request is approved, add the product to your showcase here.</p>
-                    
-                    <div className={`mt-4 space-y-6 transition-all duration-300 ${!isShowcaseReady ? 'filter grayscale opacity-50 pointer-events-none' : ''}`}>
-                        <Button 
-                            className="w-full"
-                            data-testid="showcase-button"
-                            disabled={!isShowcaseReady}
-                            onClick={handleAddToShowcase}
-                        >
-                            Add to Showcase & Confirm
-                        </Button>
-                    </div>
-
-                    {!isShowcaseReady && (
-                        <div className="mt-4 text-center">
-                            <p className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
-                                Locked until your request is approved by an admin.
-                            </p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            <Section title="Your Actions">
+                <div className="space-y-4">
+                    <Card>
+                        <CardContent>
+                            <h2 className="text-lg font-bold">Sample Request</h2>
+                            
+                            {!request ? (
+                                <>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Submit a new Fyne Skincare video to request a free sample of this product.</p>
+                                    <form onSubmit={handleRequestSubmit} className="mt-6 space-y-4">
+                                        <Input label="Fyne Video URL" placeholder="https://tiktok.com/video/..." value={fyneVideoUrl} onChange={e => setFyneVideoUrl(e.target.value)} required data-testid="fyne-video-url-input" />
+                                        <Input label="Ad Code" placeholder="FYNE123" value={adCode} onChange={e => setAdCode(e.target.value)} required data-testid="ad-code-input"/>
+                                        {error && <p className="text-red-500 text-sm">{error}</p>}
+                                        {successMessage && <p className="text-green-500 text-sm">{successMessage}</p>}
+                                        <Button type="submit" className="w-full" disabled={isSubmitting}>{isSubmitting ? 'Submitting...' : 'Submit Request'}</Button>
+                                    </form>
+                                </>
+                            ) : (
+                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                   Your request is being processed. You can monitor its progress in the status tracker above.
+                                 </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className={`${!isShowcaseReady ? 'opacity-50' : ''}`}>
+                            <h2 className="text-lg font-bold">Creator Actions</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Once approved, add the product to your showcase.</p>
+                            <Button 
+                                className="w-full mt-4"
+                                data-testid="showcase-button"
+                                disabled={!isShowcaseReady}
+                                onClick={handleAddToShowcase}
+                            >
+                                Add to Showcase & Confirm
+                            </Button>
+                            {!isShowcaseReady && (
+                                <p className="text-center text-xs text-yellow-600 dark:text-yellow-400 mt-2 font-semibold">
+                                    Locked until request is approved.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </Section>
         </div>
     );
 };
+
+
+const Section: React.FC<{title: string; children: React.ReactNode}> = ({ title, children }) => (
+    <div>
+        <h2 className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400 tracking-wider mb-3">{title}</h2>
+        {children}
+    </div>
+);
 
 export default CampaignDetailPage;

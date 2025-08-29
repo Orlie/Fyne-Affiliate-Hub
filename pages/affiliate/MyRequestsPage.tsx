@@ -90,20 +90,18 @@ const MyRequestsPage: React.FC = () => {
                             <Link to={`/campaign/${req.campaignId}`} key={req.id}>
                                 <Card className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                     <CardContent>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-start gap-4">
                                             <img 
                                                 src={req.campaign?.imageUrl} 
                                                 alt={req.campaign?.name} 
-                                                className="w-16 h-16 rounded-lg object-cover flex-shrink-0" 
+                                                className="w-24 h-24 rounded-lg object-cover flex-shrink-0" 
                                             />
                                             <div className="flex-1">
-                                                <div className="flex justify-between items-start">
-                                                    <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2">{req.campaign?.name}</h3>
-                                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${status.color}`}>
-                                                        {status.text}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${status.color}`}>
+                                                    {status.text}
+                                                </span>
+                                                <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2 mt-1">{req.campaign?.name}</h3>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                                                     Requested on {req.createdAt.toLocaleDateString()}
                                                 </p>
                                             </div>
