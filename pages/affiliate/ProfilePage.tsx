@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Card, { CardContent } from '../../components/ui/Card';
-import { SunIcon, MoonIcon, LogoutIcon, TrophyIcon, LightbulbIcon, GiftIcon, ChevronRightIcon } from '../../components/icons/Icons';
+import { SunIcon, MoonIcon, LogoutIcon, TrophyIcon, LightbulbIcon, GiftIcon, ChevronRightIcon, DocumentMagnifyingGlassIcon } from '../../components/icons/Icons';
 
 const ProfilePage: React.FC = () => {
     const { user, updateProfile, logout, changePassword } = useAuth();
@@ -55,7 +55,6 @@ const ProfilePage: React.FC = () => {
             setNewPassword('');
             setConfirmPassword('');
         } catch (error: any) {
-            console.error("Password change failed:", error);
             setPasswordError('Failed to change password. You may need to log out and log back in.');
         }
     };
@@ -67,6 +66,7 @@ const ProfilePage: React.FC = () => {
             <Card>
                 <CardContent>
                     <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                        <ProfileMenuItem label="My Requests" icon={DocumentMagnifyingGlassIcon} to="/my-requests" />
                         <ProfileMenuItem label="Leaderboard" icon={TrophyIcon} to="/leaderboard" />
                         <ProfileMenuItem label="Resources" icon={LightbulbIcon} to="/resources" />
                         <ProfileMenuItem label="Incentives" icon={GiftIcon} to="/incentives" />

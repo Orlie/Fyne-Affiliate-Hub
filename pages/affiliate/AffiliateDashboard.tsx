@@ -12,6 +12,7 @@ import ResourcesPage from './ResourcesPage';
 import IncentivesPage from './IncentivesPage';
 import ProfilePage from './ProfilePage';
 import TicketsPage from './TicketsPage';
+import MyRequestsPage from './MyRequestsPage';
 
 type AffiliateTab = '' | 'campaigns' | 'profile';
 
@@ -35,7 +36,7 @@ const AffiliateDashboard: React.FC = () => {
         if (currentPath.startsWith('campaign')) activeTabId = 'campaigns';
     } else {
         // If the path is for a page now nested under profile, set profile as active
-        if (['leaderboard', 'resources', 'incentives', 'tickets'].includes(currentPath)) {
+        if (['leaderboard', 'resources', 'incentives', 'tickets', 'my-requests'].includes(currentPath)) {
             activeTabId = 'profile';
         } else {
             activeTabId = '';
@@ -60,6 +61,7 @@ const AffiliateDashboard: React.FC = () => {
                     <Route path="/incentives" element={<IncentivesPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/tickets" element={<TicketsPage />} />
+                    <Route path="/my-requests" element={<MyRequestsPage />} />
                 </Routes>
             </main>
 

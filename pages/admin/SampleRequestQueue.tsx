@@ -112,23 +112,27 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, campaign, onStatusUp
                 );
             case 'PendingShowcase':
                  return (
-                    <div className="flex flex-col items-end space-y-2">
-                        <p className="text-sm text-yellow-600 dark:text-yellow-400 self-start">Waiting for affiliate action.</p>
-                        <a href={campaign?.adminOrderLink} target="_blank" rel="noopener noreferrer" className="w-full">
-                            <Button size="sm" className="w-full" disabled>
-                                Purchase Sample
-                            </Button>
-                        </a>
+                    <div className="flex flex-col items-start space-y-2 w-full">
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400">Waiting for affiliate to add product to their TikTok showcase.</p>
                     </div>
                 );
             case 'PendingOrder':
                 return (
-                     <div className="flex flex-col space-y-2">
-                        <a href={campaign?.adminOrderLink} target="_blank" rel="noopener noreferrer" className="w-full">
-                            <Button size="sm" className="w-full" data-testid="order-link-button" disabled={!campaign?.adminOrderLink}>
-                                Purchase Sample
-                            </Button>
-                        </a>
+                     <div className="flex flex-col space-y-2 w-full">
+                        {campaign?.adminOrderLink ? (
+                            <a href={campaign.adminOrderLink} target="_blank" rel="noopener noreferrer" className="w-full">
+                                <Button size="sm" className="w-full" data-testid="order-link-button">
+                                    Purchase Sample
+                                </Button>
+                            </a>
+                        ) : (
+                            <div className="text-center w-full">
+                                <Button size="sm" className="w-full" disabled>
+                                    Purchase Sample
+                                </Button>
+                                <p className="text-xs text-gray-500 mt-1">Order link not provided.</p>
+                            </div>
+                        )}
                         <Button size="sm" variant="secondary" data-testid="mark-shipped-button" onClick={() => onStatusUpdate(request.id, 'Shipped')}>Mark as Shipped</Button>
                     </div>
                 );
