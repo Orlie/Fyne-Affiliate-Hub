@@ -1,9 +1,6 @@
-// FIX: Changed to use the firebase/compat library to resolve import errors with older firebase versions
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
+import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration is now hardcoded for reliability
 const firebaseConfig = {
@@ -18,19 +15,19 @@ const firebaseConfig = {
 
 const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-// Initialize Firebase using compat syntax, which is robust to version mismatches.
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-
-// Get the app instance and then get the v9 services, which are compatible.
-const app = firebase.app();
-const auth = getAuth(app);
-const db = getFirestore(app);
-
 if (!isFirebaseConfigured) {
   console.warn("Firebase configuration is missing or incomplete. Some features will be disabled.");
 }
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// Transport fix: Force long-polling to work around restrictive networks.
+const db = initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+  useFetchStreams: false
+});
 
 // Export the initialized services
 export { app, auth, db };
