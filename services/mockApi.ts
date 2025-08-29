@@ -1,3 +1,4 @@
+
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus
@@ -80,12 +81,17 @@ export const fetchCampaignById = async (id: string): Promise<Campaign | null> =>
 };
 
 // SAMPLE REQUESTS
-export const fetchSampleRequests = async (status?: SampleRequestStatus): Promise<SampleRequest[]> => {
+export const fetchSampleRequests = async (params?: { status?: SampleRequestStatus; affiliateId?: string }): Promise<SampleRequest[]> => {
     if (!db) return [];
-    let q = query(collection(db, 'sampleRequests'), orderBy('createdAt', 'desc'));
-    if (status) {
-        q = query(collection(db, 'sampleRequests'), where('status', '==', status), orderBy('createdAt', 'desc'));
+    const constraints = [orderBy('createdAt', 'desc')];
+    if (params?.status) {
+        constraints.push(where('status', '==', params.status));
     }
+    if (params?.affiliateId) {
+        constraints.push(where('affiliateId', '==', params.affiliateId));
+    }
+    
+    const q = query(collection(db, 'sampleRequests'), ...constraints);
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => docToModel(doc) as SampleRequest);
 };

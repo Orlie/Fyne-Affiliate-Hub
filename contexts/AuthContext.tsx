@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User as AppUser } from '../types';
 import { auth, db } from '../firebase';
+// FIX: Changed import path from 'firebase/auth' to '@firebase/auth' to resolve missing export members.
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
@@ -8,7 +9,7 @@ import {
   createUserWithEmailAndPassword,
   updatePassword,
   User as FirebaseUser
-} from 'firebase/auth';
+} from '@firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 
 

@@ -20,21 +20,32 @@ const SampleRequestQueue: React.FC = () => {
   const [requests, setRequests] = useState<SampleRequest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [campaignsLoading, setCampaignsLoading] = useState(true);
 
   const loadRequests = useCallback(async (tab: QueueTab) => {
     setLoading(true);
     try {
-        const [requestData, campaignData] = await Promise.all([
-            fetchSampleRequests(tab),
-            fetchAllCampaignsAdmin()
-        ]);
+        const requestData = await fetchSampleRequests({ status: tab });
         setRequests(requestData);
-        setCampaigns(campaignData);
     } catch(error) {
         console.error("Failed to load sample requests:", error);
     } finally {
         setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const loadCampaigns = async () => {
+        try {
+            const campaignData = await fetchAllCampaignsAdmin();
+            setCampaigns(campaignData);
+        } catch(error) {
+            console.error("Failed to load campaigns:", error);
+        } finally {
+            setCampaignsLoading(false);
+        }
+    };
+    loadCampaigns();
   }, []);
 
   useEffect(() => {
@@ -70,7 +81,7 @@ const SampleRequestQueue: React.FC = () => {
       </div>
 
       <div className="mt-8">
-        {loading ? (
+        {loading || campaignsLoading ? (
             <p>Loading requests...</p>
         ) : requests.length === 0 ? (
             <p className="text-gray-500 dark:text-gray-400">No requests in this queue.</p>

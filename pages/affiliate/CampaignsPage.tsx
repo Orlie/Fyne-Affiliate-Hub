@@ -21,12 +21,11 @@ const CampaignsPage: React.FC = () => {
             try {
                 const [campaignsData, requestsData] = await Promise.all([
                     fetchCampaigns(),
-                    fetchSampleRequests() // In a real app, you might query this for the specific user
+                    fetchSampleRequests({ affiliateId: user.uid })
                 ]);
                 
                 setCampaigns(campaignsData);
-                // Filter requests for the current user
-                setRequests(requestsData.filter(r => r.affiliateId === user.uid));
+                setRequests(requestsData);
             } catch(error) {
                 console.error("Failed to load campaign data:", error);
             } finally {

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Campaign, SampleRequest } from '../../types';
@@ -7,14 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { LightbulbIcon } from '../../components/icons/Icons';
-
-// A simple back icon
-const ChevronLeftIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-    </svg>
-);
+import { LightbulbIcon, ChevronLeftIcon } from '../../components/icons/Icons';
 
 
 const CampaignDetailPage: React.FC = () => {
@@ -39,9 +33,7 @@ const CampaignDetailPage: React.FC = () => {
                 const currentCampaign = await fetchCampaignById(campaignId);
                 setCampaign(currentCampaign);
 
-                // Fetch only requests for this user, then find the one for this campaign
-                const allUserRequests = await fetchSampleRequests();
-                const userRequests = allUserRequests.filter(r => r.affiliateId === user.uid);
+                const userRequests = await fetchSampleRequests({ affiliateId: user.uid });
                 const currentRequest = userRequests.find(r => r.campaignId === campaignId);
                 setRequest(currentRequest);
 
@@ -72,8 +64,7 @@ const CampaignDetailPage: React.FC = () => {
         if (result.success) {
             setSuccessMessage(result.message);
             // Refetch requests to update UI state
-            const allUserRequests = await fetchSampleRequests();
-            const userRequests = allUserRequests.filter(r => r.affiliateId === user.uid);
+            const userRequests = await fetchSampleRequests({ affiliateId: user.uid });
             const currentRequest = userRequests.find(r => r.campaignId === campaign.id);
             setRequest(currentRequest);
             setFyneVideoUrl('');
