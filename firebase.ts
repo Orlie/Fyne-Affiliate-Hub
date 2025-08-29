@@ -1,8 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { initializeFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration is now hardcoded for reliability
 const firebaseConfig = {
   apiKey: "AIzaSyBVtZFT-rqFJbZj0goU07wgAweuSDc5fgI",
   authDomain: "fyne-affiliate-hub.firebaseapp.com",
@@ -13,22 +12,17 @@ const firebaseConfig = {
   measurementId: "G-7287356S0G"
 };
 
-const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 
-if (!isFirebaseConfigured) {
-  console.warn("Firebase configuration is missing or incomplete. Some features will be disabled.");
-}
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// Transport fix: Force long-polling to work around restrictive networks.
-const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
-  useFetchStreams: false
+// Prefer Fetch streaming (no WebChannel). If it fails, use the fallback below.
+export const db = initializeFirestore(app, {
+  useFetchStreams: true,
+  experimentalAutoDetectLongPolling: false
 });
 
-// Export the initialized services
-export { app, auth, db };
-export const FIREBASE_ENABLED = isFirebaseConfigured;
+// Fallback if still failing:
+// export const db = initializeFirestore(app, {
+//   experimentalForceLongPolling: true,
+//   useFetchStreams: false
+// });

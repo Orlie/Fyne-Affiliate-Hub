@@ -2,16 +2,12 @@ import {
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus
 } from '../types';
-import { db, FIREBASE_ENABLED } from '../firebase';
+import { db } from '../firebase';
 import { 
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
     deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot
 } from 'firebase/firestore';
 
-
-if (!FIREBASE_ENABLED) {
-    console.warn("Firebase is not enabled. All API calls will fail.");
-}
 
 // --- Helper Functions ---
 const docToModel = (doc: DocumentSnapshot) => {

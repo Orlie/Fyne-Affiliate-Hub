@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User as AppUser } from '../types';
-import { auth, db, FIREBASE_ENABLED } from '../firebase';
+import { auth, db } from '../firebase';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
@@ -29,12 +29,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!FIREBASE_ENABLED) {
-      console.warn("Firebase is not configured. App is in offline mode.");
-      setLoading(false);
-      return;
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         try {
@@ -66,12 +60,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (!FIREBASE_ENABLED) throw new Error("Firebase not configured.");
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
-    if (!FIREBASE_ENABLED) return;
     await signOut(auth);
   };
   
@@ -86,8 +78,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const register = async (details: { displayName: string; username: string; email: string; tiktokUsername: string; discordUsername: string; }, password: string) => {
-    if (!FIREBASE_ENABLED) throw new Error("Firebase not configured.");
-    
     const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
     const firebaseUser = userCredential.user;
 
@@ -112,7 +102,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const changePassword = async (newPassword: string) => {
     const currentUser = auth.currentUser;
-    if (!FIREBASE_ENABLED || !currentUser) throw new Error("User not authenticated.");
+    if (!currentUser) throw new Error("User not authenticated.");
     await updatePassword(currentUser, newPassword);
   }
 
