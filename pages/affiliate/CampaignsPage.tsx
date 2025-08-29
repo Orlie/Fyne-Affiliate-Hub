@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Campaign, SampleRequest } from '../../types';
-import { fetchCampaigns, fetchSampleRequests } from '../../services/mockApi';
+import { listenToCampaigns, fetchSampleRequests } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 
@@ -15,24 +15,24 @@ const CampaignsPage: React.FC = () => {
     const [selectedCategory, setSelectedCategory] = useState('All');
 
     useEffect(() => {
-        const loadData = async () => {
-            if (!user) return;
-            setLoading(true);
-            try {
-                const [campaignsData, requestsData] = await Promise.all([
-                    fetchCampaigns(),
-                    fetchSampleRequests({ affiliateId: user.uid })
-                ]);
-                
-                setCampaigns(campaignsData);
-                setRequests(requestsData);
-            } catch(error) {
-                console.error("Failed to load campaign data:", error);
-            } finally {
-                setLoading(false);
-            }
+        if (!user) return;
+        setLoading(true);
+
+        const unsubscribeCampaigns = listenToCampaigns((campaignsData) => {
+            setCampaigns(campaignsData);
+            if (loading) setLoading(false);
+        });
+
+        const loadRequests = async () => {
+            const requestsData = await fetchSampleRequests({ affiliateId: user.uid });
+            setRequests(requestsData);
         };
-        loadData();
+        
+        loadRequests();
+
+        return () => {
+            unsubscribeCampaigns();
+        };
     }, [user]);
 
     const categories = useMemo(() => ['All', ...new Set(campaigns.map(c => c.category))], [campaigns]);
@@ -41,11 +41,13 @@ const CampaignsPage: React.FC = () => {
         return campaigns
             .filter(c => selectedCategory === 'All' || c.category === selectedCategory)
             .sort((a, b) => {
+                const aDate = a.createdAt || new Date(0);
+                const bDate = b.createdAt || new Date(0);
                 switch (sortOrder) {
                     case 'newest':
-                        return b.createdAt.getTime() - a.createdAt.getTime();
+                        return bDate.getTime() - aDate.getTime();
                     case 'oldest':
-                        return a.createdAt.getTime() - b.createdAt.getTime();
+                        return aDate.getTime() - bDate.getTime();
                     case 'commission_high':
                         return (b.commission ?? 0) - (a.commission ?? 0);
                     case 'commission_low':

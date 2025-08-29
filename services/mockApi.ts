@@ -7,7 +7,7 @@ import {
 import { db } from '../firebase';
 import { 
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
-    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch
+    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot
 } from 'firebase/firestore';
 
 
@@ -163,12 +163,23 @@ export const syncCampaignsFromGoogleSheet = async (sheetUrl: string): Promise<{s
     }
 };
 
-export const fetchCampaigns = async (): Promise<Campaign[]> => {
-    if (!db) return [];
+export const listenToCampaigns = (onUpdate: (campaigns: Campaign[]) => void): (() => void) => {
+    if (!db) {
+        onUpdate([]);
+        return () => {}; // Return a no-op unsubscribe function
+    }
     const campaignsCol = collection(db, 'campaigns');
     const q = query(campaignsCol, where('active', '==', true));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => docToModel(doc) as Campaign);
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const campaignsData = snapshot.docs.map(doc => docToModel(doc) as Campaign);
+        onUpdate(campaignsData);
+    }, (error) => {
+        console.error("Error listening to campaigns:", error);
+        onUpdate([]); // On error, provide an empty list
+    });
+
+    return unsubscribe;
 };
 
 export const fetchAllCampaignsAdmin = async (): Promise<Campaign[]> => {
@@ -341,24 +352,31 @@ export const fetchTickets = async (affiliateId?: string): Promise<Ticket[]> => {
     return snapshot.docs.map(doc => docToModel(doc) as Ticket);
 };
 
-export const createTicket = async (data: { affiliateId: string; subject: string; message: string }): Promise<void> => {
-    if (!db) return;
-    const affiliateDoc = await getDoc(doc(db, 'users', data.affiliateId));
-    const affiliate = affiliateDoc.data();
+export const createTicket = async (data: { affiliateId: string; subject: string; message: string }): Promise<{success: boolean, message: string}> => {
+    if (!db) return { success: false, message: 'Database not connected.' };
+    try {
+        const affiliateDoc = await getDoc(doc(db, 'users', data.affiliateId));
+        const affiliate = affiliateDoc.data();
 
-    const newTicket = {
-        affiliateId: data.affiliateId,
-        affiliateTiktok: affiliate?.tiktokUsername || '@unknown',
-        subject: data.subject,
-        status: 'Pending' as const,
-        createdAt: serverTimestamp(),
-        messages: [{
-            sender: 'Affiliate' as const,
-            text: data.message,
-            timestamp: Timestamp.now()
-        }]
-    };
-    await addDoc(collection(db, 'tickets'), newTicket);
+        const newTicket = {
+            affiliateId: data.affiliateId,
+            affiliateTiktok: affiliate?.tiktokUsername || '@unknown',
+            subject: data.subject,
+            status: 'Pending' as const,
+            createdAt: serverTimestamp(),
+            messages: [{
+                sender: 'Affiliate' as const,
+                text: data.message,
+                timestamp: Timestamp.now()
+            }]
+        };
+        await addDoc(collection(db, 'tickets'), newTicket);
+        return { success: true, message: 'Ticket created successfully.' };
+    } catch (error) {
+        console.error("Error creating ticket:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `Failed to create ticket: ${errorMessage}` };
+    }
 };
 
 export const addMessageToTicket = async (ticketId: string, message: { sender: 'Admin' | 'Affiliate'; text: string }): Promise<void> => {

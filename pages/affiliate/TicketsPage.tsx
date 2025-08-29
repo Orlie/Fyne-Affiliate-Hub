@@ -37,9 +37,13 @@ const TicketsPage: React.FC = () => {
 
     const handleCreateTicket = async (subject: string, message: string) => {
         if (!user) return;
-        await createTicket({ affiliateId: user.uid, subject, message });
-        setIsModalOpen(false);
-        loadTickets();
+        const result = await createTicket({ affiliateId: user.uid, subject, message });
+        if (result.success) {
+            setIsModalOpen(false);
+            loadTickets();
+        } else {
+            alert(`Failed to create ticket: ${result.message}`);
+        }
     };
 
     const handleReply = async (ticketId: string, text: string) => {
