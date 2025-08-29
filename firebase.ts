@@ -6,7 +6,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyBVtZFT-rqFJbZj0goU07wgAweuSDc5fgI",
   authDomain: "fyne-affiliate-hub.firebaseapp.com",
   projectId: "fyne-affiliate-hub",
-  storageBucket: "fyne-affiliate-hub.appspot.com",
+  storageBucket: "fyne-affiliate-hub.firebasestorage.app",
   messagingSenderId: "468746870595",
   appId: "1:468746870595:web:cd53c29e2b0b10e5dbd9f6",
   measurementId: "G-7287356S0G"

@@ -35,6 +35,12 @@ export const fetchAllAffiliates = async (): Promise<User[]> => {
     return snapshot.docs.map(doc => docToModel(doc) as User);
 };
 
+export const updateAffiliateStatus = async (userId: string, newStatus: 'Verified' | 'Banned'): Promise<void> => {
+    if (!db) return;
+    const userDoc = doc(db, 'users', userId);
+    await updateDoc(userDoc, { status: newStatus });
+};
+
 export const resetUserPasswordAdmin = async (userId: string): Promise<void> => {
     alert(`This is a high-security action.
     

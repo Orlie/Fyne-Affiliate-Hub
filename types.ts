@@ -12,7 +12,7 @@ export interface User {
   discordUsername?: string;
   tiktokUsername?: string;
   shippingPhoneNumber?: string;
-  status?: 'Verified' | 'Banned';
+  status: 'Verified' | 'Banned';
   cumulativeGMV?: number;
   approvedVideoCount?: number;
   createdAt?: Date;
