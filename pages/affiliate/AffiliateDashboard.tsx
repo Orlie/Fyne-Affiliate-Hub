@@ -1,10 +1,10 @@
 
 
-
 import React from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { HomeIcon, TrophyIcon, LightbulbIcon, GiftIcon, UserCircleIcon } from '../../components/icons/Icons';
+import { ClipboardCheckIcon, HomeIcon, TrophyIcon, LightbulbIcon, GiftIcon, UserCircleIcon } from '../../components/icons/Icons';
+import TasksPage from './TasksPage';
 import CampaignsPage from './CampaignsPage';
 import CampaignDetailPage from './CampaignDetailPage';
 import LeaderboardPage from './LeaderboardPage';
@@ -13,10 +13,11 @@ import IncentivesPage from './IncentivesPage';
 import ProfilePage from './ProfilePage';
 import TicketsPage from './TicketsPage';
 
-type AffiliateTab = '' | 'leaderboard' | 'resources' | 'incentives' | 'profile' | 'campaign' | 'tickets';
+type AffiliateTab = '' | 'campaigns' | 'leaderboard' | 'resources' | 'incentives' | 'profile';
 
 const TABS: { id: AffiliateTab; label: string; icon: React.FC<{className?:string}> }[] = [
-    { id: '', label: 'Campaigns', icon: HomeIcon },
+    { id: '', label: 'Tasks', icon: ClipboardCheckIcon },
+    { id: 'campaigns', label: 'Campaigns', icon: HomeIcon },
     { id: 'leaderboard', label: 'Leaderboard', icon: TrophyIcon },
     { id: 'resources', label: 'Resources', icon: LightbulbIcon },
     { id: 'incentives', label: 'Incentives', icon: GiftIcon },
@@ -31,10 +32,9 @@ const AffiliateDashboard: React.FC = () => {
     // Determine active tab from URL path
     const currentPath = location.pathname.split('/')[1] || '';
     
-    // Keep 'Campaigns' tab active for detail page, 'Profile' for tickets
     let activeTabId: AffiliateTab;
     if (currentPath === 'campaign') {
-        activeTabId = '';
+        activeTabId = 'campaigns';
     } else if (currentPath === 'tickets') {
         activeTabId = 'profile';
     } else {
@@ -52,7 +52,8 @@ const AffiliateDashboard: React.FC = () => {
 
             <main className="flex-1 overflow-y-auto pb-20">
                 <Routes>
-                    <Route path="/" element={<CampaignsPage />} />
+                    <Route path="/" element={<TasksPage />} />
+                    <Route path="/campaigns" element={<CampaignsPage />} />
                     <Route path="/campaign/:campaignId" element={<CampaignDetailPage />} />
                     <Route path="/leaderboard" element={<LeaderboardPage />} />
                     <Route path="/resources" element={<ResourcesPage />} />
@@ -67,7 +68,7 @@ const AffiliateDashboard: React.FC = () => {
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
-                        data-testid={`nav-${tab.id || 'campaigns'}`}
+                        data-testid={`nav-${tab.id || 'tasks'}`}
                         onClick={() => navigate(`/${tab.id}`)}
                         className={`flex flex-col items-center justify-center w-full pt-2 pb-1 text-xs font-medium transition-colors duration-200 ${
                             activeTabId === tab.id ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400'

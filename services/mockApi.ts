@@ -206,6 +206,16 @@ export const listenToSampleRequestsForAffiliate = (affiliateId: string, onUpdate
     return createListener<SampleRequest>(q, onUpdate);
 };
 
+export const listenToPendingTasksForAffiliate = (affiliateId: string, onUpdate: (requests: SampleRequest[]) => void): (() => void) => {
+    const q = query(
+        collection(db, 'sampleRequests'), 
+        where('affiliateId', '==', affiliateId), 
+        where('status', '==', 'PendingShowcase'),
+        orderBy('createdAt', 'desc')
+    );
+    return createListener<SampleRequest>(q, onUpdate);
+};
+
 export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' | 'status' | 'createdAt' | 'campaignName' | 'affiliateTiktok'>): Promise<{success: boolean; message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
     

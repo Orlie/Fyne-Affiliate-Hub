@@ -108,7 +108,7 @@ const CampaignDetailPage: React.FC = () => {
 
     return (
         <div className="p-4 space-y-4">
-             <Link to="/" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
+             <Link to="/campaigns" className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium">
                 <ChevronLeftIcon className="h-5 w-5 mr-1" />
                 Back to Campaigns
             </Link>
