@@ -193,12 +193,8 @@ export const fetchCampaignById = async (id: string): Promise<Campaign | null> =>
 };
 
 // SAMPLE REQUESTS
-export const listenToSampleRequests = (onUpdate: (requests: SampleRequest[]) => void, status?: SampleRequestStatus): (() => void) => {
-    const constraints = [orderBy('createdAt', 'desc')];
-    if (status) {
-        constraints.push(where('status', '==', status));
-    }
-    const q = query(collection(db, 'sampleRequests'), ...constraints);
+export const listenToSampleRequests = (onUpdate: (requests: SampleRequest[]) => void): (() => void) => {
+    const q = query(collection(db, 'sampleRequests'));
     return createListener<SampleRequest>(q, onUpdate);
 };
 

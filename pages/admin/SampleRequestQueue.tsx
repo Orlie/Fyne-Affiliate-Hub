@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { SampleRequest, SampleRequestStatus } from '../../types';
 import { listenToSampleRequests, updateSampleRequestStatus, listenToAllCampaignsAdmin } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
@@ -17,7 +17,7 @@ const TABS: { id: QueueTab; label: string }[] = [
 
 const SampleRequestQueue: React.FC = () => {
   const [activeTab, setActiveTab] = useState<QueueTab>('PendingApproval');
-  const [requests, setRequests] = useState<SampleRequest[]>([]);
+  const [allRequests, setAllRequests] = useState<SampleRequest[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [campaignsLoading, setCampaignsLoading] = useState(true);
@@ -25,12 +25,18 @@ const SampleRequestQueue: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     const unsubscribe = listenToSampleRequests((requestData) => {
-        setRequests(requestData);
+        setAllRequests(requestData);
         setLoading(false);
-    }, activeTab);
+    });
 
     return () => unsubscribe();
-  }, [activeTab]);
+  }, []);
+
+  const requests = useMemo(() => {
+    return allRequests
+        .filter(req => req.status === activeTab)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }, [allRequests, activeTab]);
 
 
   useEffect(() => {
