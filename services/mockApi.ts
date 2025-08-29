@@ -45,12 +45,9 @@ const createListener = <T>(q: any, onUpdate: (data: T[]) => void): (() => void) 
 // --- API Functions ---
 
 // USERS
-export const fetchAllAffiliates = async (): Promise<User[]> => {
-    if (!db) return [];
-    const usersCol = collection(db, 'users');
-    const q = query(usersCol, where('role', '==', 'Affiliate'), orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => docToModel(doc) as User);
+export const listenToAllAffiliates = (onUpdate: (users: User[]) => void): (() => void) => {
+    const q = query(collection(db, 'users'), where('role', '==', 'Affiliate'), orderBy('createdAt', 'desc'));
+    return createListener<User>(q, onUpdate);
 };
 
 export const updateAffiliateStatus = async (userId: string, newStatus: 'Verified' | 'Banned'): Promise<void> => {
@@ -107,8 +104,8 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
         }
         
         const campaignsCol = collection(db, 'campaigns');
-        const existingDocsSnapshot = await getDocs(query(campaignsCol, where('id', 'in', campaignsToSync.map(c => c.id))));
-        const existingIds = new Set(existingDocsSnapshot.docs.map(d => d.id));
+        const existingDocsSnapshot = await getDocs(query(campaignsCol));
+        const existingDocs = new Map(existingDocsSnapshot.docs.map(d => [d.id, d.data()]));
 
         const batch = writeBatch(db);
 
@@ -131,9 +128,14 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
                     adminOrderLink: campaign.adminOrderLink || '',
                 };
 
-                // Only set createdAt for new documents to preserve original date
-                if (!existingIds.has(campaign.id.trim())) {
-                    campaignData.createdAt = serverTimestamp();
+                // Handle creation date
+                if (!existingDocs.has(campaign.id.trim())) {
+                    const providedDate = campaign.createdAt ? new Date(campaign.createdAt) : null;
+                    if (providedDate && !isNaN(providedDate.getTime())) {
+                        campaignData.createdAt = Timestamp.fromDate(providedDate);
+                    } else {
+                        campaignData.createdAt = serverTimestamp();
+                    }
                 }
 
                 batch.set(docRef, campaignData, { merge: true });
@@ -199,16 +201,9 @@ export const listenToSampleRequests = (onUpdate: (requests: SampleRequest[]) => 
 };
 
 
-export const fetchSampleRequests = async (params?: { affiliateId?: string }): Promise<SampleRequest[]> => {
-    if (!db) return [];
-    const constraints = [orderBy('createdAt', 'desc')];
-    if (params?.affiliateId) {
-        constraints.push(where('affiliateId', '==', params.affiliateId));
-    }
-    
-    const q = query(collection(db, 'sampleRequests'), ...constraints);
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => docToModel(doc) as SampleRequest);
+export const listenToSampleRequestsForAffiliate = (affiliateId: string, onUpdate: (requests: SampleRequest[]) => void): (() => void) => {
+    const q = query(collection(db, 'sampleRequests'), where('affiliateId', '==', affiliateId), orderBy('createdAt', 'desc'));
+    return createListener<SampleRequest>(q, onUpdate);
 };
 
 export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' | 'status' | 'createdAt' | 'campaignName' | 'affiliateTiktok'>): Promise<{success: boolean; message: string}> => {
@@ -242,6 +237,13 @@ export const updateSampleRequestStatus = async (requestId: string, newStatus: Sa
     const requestDoc = doc(db, 'sampleRequests', requestId);
     await updateDoc(requestDoc, { status: newStatus });
 };
+
+export const affiliateConfirmsShowcase = async (requestId: string): Promise<void> => {
+    if (!db) return;
+    const requestDoc = doc(db, 'sampleRequests', requestId);
+    await updateDoc(requestDoc, { status: 'PendingOrder' });
+};
+
 
 // LEADERBOARD
 export const listenToLeaderboard = (onUpdate: (leaderboard: Leaderboard | null) => void): (() => void) => {
@@ -419,7 +421,8 @@ export const createTicket = async (data: { affiliateId: string; subject: string;
         };
         await addDoc(collection(db, 'tickets'), newTicket);
         return { success: true, message: 'Ticket created successfully.' };
-    } catch (error) {
+// FIX: Explicitly type the caught error to resolve 'Cannot find name' error in the catch block.
+    } catch (error: any) {
         console.error("Error creating ticket:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message: `Failed to create ticket: ${errorMessage}` };

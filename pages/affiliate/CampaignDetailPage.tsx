@@ -2,13 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Campaign, SampleRequest } from '../../types';
-import { fetchCampaignById, submitSampleRequest, fetchSampleRequests } from '../../services/mockApi';
+import { Campaign, SampleRequest, SampleRequestStatus } from '../../types';
+import { fetchCampaignById, submitSampleRequest, listenToSampleRequestsForAffiliate, affiliateConfirmsShowcase } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import { LightbulbIcon, ChevronLeftIcon } from '../../components/icons/Icons';
+
+
+const STATUS_MAP: Record<SampleRequestStatus, { step: number; label: string }> = {
+    'PendingApproval': { step: 1, label: 'Request Submitted' },
+    'Rejected': { step: 1, label: 'Request Rejected' },
+    'PendingShowcase': { step: 2, label: 'Admin Approved' },
+    'PendingOrder': { step: 3, label: 'Added to Showcase' },
+    'Shipped': { step: 4, label: 'Sample Shipped' },
+};
+const STATUS_STEPS = ['Request Submitted', 'Admin Approved', 'Added to Showcase', 'Sample Shipped'];
 
 
 const CampaignDetailPage: React.FC = () => {
@@ -26,17 +36,12 @@ const CampaignDetailPage: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        const loadData = async () => {
-            if (!campaignId || !user) return;
+        const loadCampaign = async () => {
+            if (!campaignId) return;
             setLoading(true);
             try {
                 const currentCampaign = await fetchCampaignById(campaignId);
                 setCampaign(currentCampaign);
-
-                const userRequests = await fetchSampleRequests({ affiliateId: user.uid });
-                const currentRequest = userRequests.find(r => r.campaignId === campaignId);
-                setRequest(currentRequest);
-
             } catch (err) {
                 console.error("Failed to load campaign details", err);
                 setError("Failed to load campaign details.");
@@ -44,8 +49,18 @@ const CampaignDetailPage: React.FC = () => {
                 setLoading(false);
             }
         };
-        loadData();
-    }, [campaignId, user]);
+        loadCampaign();
+    }, [campaignId]);
+
+    useEffect(() => {
+        if (!user || !campaignId) return;
+        const unsubscribe = listenToSampleRequestsForAffiliate(user.uid, (userRequests) => {
+             const currentRequest = userRequests.find(r => r.campaignId === campaignId);
+             setRequest(currentRequest);
+        });
+        return () => unsubscribe();
+    }, [user, campaignId]);
+
 
     const handleRequestSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,10 +78,7 @@ const CampaignDetailPage: React.FC = () => {
 
         if (result.success) {
             setSuccessMessage(result.message);
-            // Refetch requests to update UI state
-            const userRequests = await fetchSampleRequests({ affiliateId: user.uid });
-            const currentRequest = userRequests.find(r => r.campaignId === campaign.id);
-            setRequest(currentRequest);
+            // Request state will update via listener
             setFyneVideoUrl('');
             setAdCode('');
         } else {
@@ -74,11 +86,25 @@ const CampaignDetailPage: React.FC = () => {
         }
         setIsSubmitting(false);
     };
+
+    const handleAddToShowcase = async () => {
+        if (!request || !campaign) return;
+        window.open(campaign.shareLink, '_blank');
+        try {
+            await affiliateConfirmsShowcase(request.id);
+            // UI will update via listener, moving status to 'PendingOrder'
+        } catch (error) {
+            console.error("Failed to confirm showcase add:", error);
+            setError("There was an issue confirming your action. Please try again.");
+        }
+    };
     
     if (loading) return <p className="p-4 text-center">Loading campaign details...</p>;
     if (!campaign) return <p className="p-4 text-center">Campaign not found.</p>;
 
-    const isShowcaseReady = request?.status === 'PendingShowcase' || request?.status === 'PendingOrder' || request?.status === 'Shipped';
+    const isShowcaseReady = request?.status === 'PendingShowcase';
+    const currentStatusInfo = request ? STATUS_MAP[request.status] : null;
+    const currentStep = currentStatusInfo ? currentStatusInfo.step : 0;
 
     return (
         <div className="p-4 space-y-4">
@@ -110,6 +136,33 @@ const CampaignDetailPage: React.FC = () => {
                     )}
                 </CardContent>
             </Card>
+            
+            {request && (
+                <Card>
+                    <CardContent>
+                        <h2 className="text-lg font-bold">Request Status</h2>
+                        <div className="mt-4 flex justify-between items-center text-xs text-center">
+                            {STATUS_STEPS.map((label, index) => {
+                                const stepNumber = index + 1;
+                                const isActive = stepNumber <= currentStep;
+                                const isCurrent = stepNumber === currentStep;
+                                return (
+                                    <React.Fragment key={label}>
+                                        <div className="flex flex-col items-center">
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${isActive ? 'bg-primary-600 border-primary-600 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                                                {stepNumber}
+                                            </div>
+                                            <p className={`mt-1 font-semibold ${isCurrent ? 'text-primary-600 dark:text-primary-400' : (isActive ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500')}`}>{label}</p>
+                                        </div>
+                                        {stepNumber < STATUS_STEPS.length && <div className={`flex-1 h-0.5 mt-[-1rem] ${isActive && stepNumber < currentStep ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'}`}></div>}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+                        {request.status === 'Rejected' && <p className="text-center text-red-500 mt-2">Your request was rejected. Please check your tickets for more information.</p>}
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardContent>
@@ -127,12 +180,9 @@ const CampaignDetailPage: React.FC = () => {
                             </form>
                         </>
                     ) : (
-                        <div className="mt-4">
-                            <p className="text-sm"><strong>Status:</strong> 
-                                <span className="ml-2 font-semibold p-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">{request.status}</span>
-                            </p>
-                            {request.status === 'PendingShowcase' && <div className="mt-2 text-xs text-center text-green-600 dark:text-green-400">Action required: Add to your showcase to proceed!</div>}
-                        </div>
+                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                           Your request is being processed. You can monitor its progress in the status tracker above.
+                         </p>
                     )}
                 </CardContent>
             </Card>
@@ -140,39 +190,23 @@ const CampaignDetailPage: React.FC = () => {
             <Card>
                 <CardContent>
                     <h2 className="text-lg font-bold">Creator Actions</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Once your sample request is approved, you can add this product to your showcase.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Once your sample request is approved, add the product to your showcase here.</p>
                     
-                    <div className={`mt-4 space-y-6 transition-all duration-300 ${!isShowcaseReady ? 'filter blur-sm grayscale opacity-50 pointer-events-none' : ''}`}>
+                    <div className={`mt-4 space-y-6 transition-all duration-300 ${!isShowcaseReady ? 'filter grayscale opacity-50 pointer-events-none' : ''}`}>
                         <Button 
                             className="w-full"
                             data-testid="showcase-button"
                             disabled={!isShowcaseReady}
-                            onClick={() => {
-                                window.open(campaign.shareLink, '_blank');
-                            }}
+                            onClick={handleAddToShowcase}
                         >
-                            Add to Showcase
+                            Add to Showcase & Confirm
                         </Button>
-
-                        <div className="flex flex-col items-center">
-                            <div className="p-2 bg-white rounded-lg inline-block shadow-md">
-                                <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(campaign.shareLink)}`} 
-                                    alt="Add to Showcase QR Code"
-                                    width="150"
-                                    height="150"
-                                    className="rounded-md"
-                                    data-testid="qr-code-image"
-                                />
-                            </div>
-                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Scan to add to showcase</p>
-                        </div>
                     </div>
 
                     {!isShowcaseReady && (
                         <div className="mt-4 text-center">
                             <p className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
-                                Locked until request is approved.
+                                Locked until your request is approved by an admin.
                             </p>
                         </div>
                     )}

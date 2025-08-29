@@ -1,27 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { User } from '../../types';
-import { fetchAllAffiliates, resetUserPasswordAdmin, updateAffiliateStatus } from '../../services/mockApi';
+import { listenToAllAffiliates, resetUserPasswordAdmin, updateAffiliateStatus } from '../../services/mockApi';
 import Button from '../../components/ui/Button';
 
 const AffiliatesManager: React.FC = () => {
   const [affiliates, setAffiliates] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadAffiliates = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAllAffiliates();
-      setAffiliates(data);
-    } catch (error) {
-      console.error("Failed to load affiliates:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadAffiliates();
-  }, [loadAffiliates]);
+    setLoading(true);
+    const unsubscribe = listenToAllAffiliates((data) => {
+        setAffiliates(data);
+        setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleResetPassword = (userId: string) => {
     if (window.confirm('Are you sure you want to reset the password for this affiliate?')) {
@@ -37,7 +30,7 @@ const AffiliatesManager: React.FC = () => {
     if (window.confirm(`Are you sure you want to ${actionText} ${affiliate.displayName}?`)) {
       try {
         await updateAffiliateStatus(affiliate.uid, newStatus);
-        setAffiliates(prev => prev.map(a => a.uid === affiliate.uid ? { ...a, status: newStatus } : a));
+        // UI will update automatically via listener
       } catch (error) {
         console.error(`Failed to ${actionText} affiliate:`, error);
         alert(`Could not ${actionText} affiliate. Please try again.`);

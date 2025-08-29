@@ -1,9 +1,5 @@
 
 
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { Campaign } from '../../types';
 import { listenToAllCampaignsAdmin, syncCampaignsFromGoogleSheet } from '../../services/mockApi';
@@ -28,8 +24,8 @@ const CampaignsManager: React.FC = () => {
   }, []);
 
   const handleDownloadTemplate = () => {
-    const headers = "id,category,name,imageUrl,productUrl,shareLink,contentDocUrl,commission,active,adminOrderLink";
-    const exampleRow = "PROD001,Skincare,Vitamin C Serum,https://example.com/image.jpg,https://example.com/product,https://example.com/share,https://docs.google.com/document/d/...,15,true,https://example.com/admin_order";
+    const headers = "id,category,name,imageUrl,productUrl,shareLink,contentDocUrl,commission,active,adminOrderLink,createdAt";
+    const exampleRow = `PROD001,Skincare,Vitamin C Serum,https://example.com/image.jpg,https://example.com/product,https://example.com/share,https://docs.google.com/document/d/...,15,true,https://example.com/admin_order,${new Date().toISOString()}`;
     const csvContent = `data:text/csv;charset=utf-8,${headers}\n${exampleRow}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");

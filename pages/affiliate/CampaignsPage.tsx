@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Campaign, SampleRequest } from '../../types';
-import { listenToCampaigns, fetchSampleRequests } from '../../services/mockApi';
+// FIX: Replaced non-existent `fetchSampleRequests` with `listenToSampleRequestsForAffiliate` listener.
+import { listenToCampaigns, listenToSampleRequestsForAffiliate } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 
@@ -22,16 +23,15 @@ const CampaignsPage: React.FC = () => {
             setCampaigns(campaignsData);
             if (loading) setLoading(false);
         });
-
-        const loadRequests = async () => {
-            const requestsData = await fetchSampleRequests({ affiliateId: user.uid });
-            setRequests(requestsData);
-        };
         
-        loadRequests();
+        // FIX: Switched from a one-time fetch to a real-time listener for sample requests.
+        const unsubscribeRequests = listenToSampleRequestsForAffiliate(user.uid, (requestsData) => {
+            setRequests(requestsData);
+        });
 
         return () => {
             unsubscribeCampaigns();
+            unsubscribeRequests();
         };
     }, [user]);
 
