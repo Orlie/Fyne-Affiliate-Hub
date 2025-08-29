@@ -6,17 +6,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { Campaign } from '../../types';
-import { fetchAllCampaignsAdmin, parseAndSyncCampaigns } from '../../services/mockApi';
+import { fetchAllCampaignsAdmin, syncCampaignsFromGoogleSheet } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import Textarea from '../../components/ui/Textarea';
+import Input from '../../components/ui/Input';
 
 const CampaignsManager: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
-  const [csvData, setCsvData] = useState('');
+  const [sheetUrl, setSheetUrl] = useState('');
   
   useEffect(() => {
     loadCampaigns();
@@ -48,16 +48,16 @@ const CampaignsManager: React.FC = () => {
   };
 
   const handleSync = async () => {
-    if (!csvData.trim()) {
-        setSyncMessage('Please paste data from your spreadsheet before syncing.');
+    if (!sheetUrl.trim()) {
+        setSyncMessage('Please paste the Google Sheet link before syncing.');
         return;
     }
     setIsSyncing(true);
-    setSyncMessage('Parsing data with AI and updating database...');
-    const result = await parseAndSyncCampaigns(csvData);
+    setSyncMessage('Fetching from URL, parsing with AI, and updating database...');
+    const result = await syncCampaignsFromGoogleSheet(sheetUrl);
     setSyncMessage(result.message);
     if (result.success) {
-        setCsvData('');
+        setSheetUrl('');
         // Reload campaigns to show the updated list
         await loadCampaigns();
     }
@@ -75,19 +75,19 @@ const CampaignsManager: React.FC = () => {
                   <div>
                     <h2 className="text-2xl font-bold">Bulk Campaign Sync</h2>
                     <p className="mt-2 text-gray-600 dark:text-gray-400 text-sm">
-                        Update campaigns by pasting data from a Google Sheet. Data must be in CSV format and include a header row. The 'id' column is used to match and update existing campaigns.
+                        Sync campaigns by pasting a shareable Google Sheet link. The sheet must be shared with "Anyone with the link". We'll sync from the first tab.
                     </p>
                     <Button variant="secondary" onClick={handleDownloadTemplate} className="mt-4">
                         Download CSV Template
                     </Button>
                   </div>
                   <div className="space-y-3">
-                     <Textarea 
-                        label="Paste Spreadsheet Data (CSV format)"
-                        rows={8}
-                        value={csvData}
-                        onChange={(e) => setCsvData(e.target.value)}
-                        placeholder="id,category,name,imageUrl..."
+                     <Input
+                        label="Google Sheet Share Link"
+                        type="url"
+                        value={sheetUrl}
+                        onChange={(e) => setSheetUrl(e.target.value)}
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
                         disabled={isSyncing}
                      />
                      <Button onClick={handleSync} disabled={isSyncing} className="w-full">

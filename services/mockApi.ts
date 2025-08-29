@@ -60,7 +60,11 @@ This ensures your admin credentials are never exposed on the client-side.`);
 
 
 // CAMPAIGNS
-export const parseAndSyncCampaigns = async (csvText: string): Promise<{success: boolean, message: string}> => {
+
+/**
+ * Internal helper to parse CSV text with Gemini and sync to Firestore.
+ */
+const processCampaignCsv = async (csvText: string): Promise<{success: boolean, message: string}> => {
     if (!process.env.API_KEY) {
         return { success: false, message: "API_KEY is not configured for the AI parser." };
     }
@@ -99,7 +103,7 @@ export const parseAndSyncCampaigns = async (csvText: string): Promise<{success: 
         const campaignsToSync = JSON.parse(response.text);
 
         if (!Array.isArray(campaignsToSync) || campaignsToSync.length === 0) {
-            return { success: false, message: "Could not parse any valid campaign data from the provided text." };
+            return { success: false, message: "AI could not parse valid campaign data from the sheet." };
         }
 
         const batch = writeBatch(db);
@@ -116,7 +120,8 @@ export const parseAndSyncCampaigns = async (csvText: string): Promise<{success: 
                     shareLink: campaign.shareLink || '',
                     commission: typeof campaign.commission === 'number' ? campaign.commission : 0,
                     active: campaign.active === true,
-                    adminOrderLink: campaign.adminOrderLink || ''
+                    adminOrderLink: campaign.adminOrderLink || '',
+                    createdAt: serverTimestamp() // Add or update timestamp on sync
                 };
                 batch.set(docRef, campaignData, { merge: true });
             }
@@ -129,6 +134,41 @@ export const parseAndSyncCampaigns = async (csvText: string): Promise<{success: 
         console.error("Error during campaign sync:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message: `An error occurred while syncing campaigns: ${errorMessage}` };
+    }
+};
+
+/**
+ * Fetches data from a public Google Sheet URL, then uses an AI model to parse and sync it.
+ * @param sheetUrl The public URL of the Google Sheet.
+ */
+export const syncCampaignsFromGoogleSheet = async (sheetUrl: string): Promise<{success: boolean, message: string}> => {
+    if (!db) return { success: false, message: 'Database not connected.' };
+    
+    // 1. Extract Sheet ID from URL using a regular expression
+    const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match || !match[1]) {
+        return { success: false, message: 'Invalid Google Sheet URL. Please provide a valid link.' };
+    }
+    const sheetId = match[1];
+
+    // 2. Construct the CSV export URL for the first sheet (gid=0)
+    const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+
+    try {
+        // 3. Fetch the CSV data from the constructed URL
+        const response = await fetch(csvExportUrl);
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}. Please ensure your Google Sheet's sharing setting is "Anyone with the link".`);
+        }
+        const csvText = await response.text();
+        
+        // 4. Pass the fetched CSV text to the AI parser and sync function
+        return await processCampaignCsv(csvText);
+
+    } catch (error) {
+        console.error("Error fetching or syncing from Google Sheet:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown network error occurred.";
+        return { success: false, message: `Failed to sync: ${errorMessage}` };
     }
 };
 
