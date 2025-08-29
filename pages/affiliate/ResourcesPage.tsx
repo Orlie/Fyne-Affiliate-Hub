@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ResourceArticle } from '../../types';
-import { fetchResources } from '../../services/mockApi';
+import { listenToResources } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 
 type ResourceCategory = 'Daily Content Briefs' | 'Viral Video Scripts' | 'Follower Growth Guides';
@@ -15,18 +15,12 @@ const ResourcesPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<ResourceCategory>('Daily Content Briefs');
 
     useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                const data = await fetchResources();
-                setResources(data);
-            } catch (error) {
-                console.error("Failed to load resources:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
+        setLoading(true);
+        const unsubscribe = listenToResources((data) => {
+            setResources(data);
+            setLoading(false);
+        });
+        return () => unsubscribe();
     }, []);
 
     const filteredResources = resources.filter(r => r.category === activeTab);

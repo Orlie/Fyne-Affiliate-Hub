@@ -2,12 +2,12 @@
 
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
-    IncentiveCampaign, Ticket, TicketStatus
+    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry
 } from '../types';
 import { db } from '../firebase';
 import { 
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
-    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot
+    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot, setDoc
 } from 'firebase/firestore';
 
 
@@ -25,6 +25,22 @@ const docToModel = (doc: DocumentSnapshot) => {
     }
     return model;
 };
+
+const createListener = <T>(q: any, onUpdate: (data: T[]) => void): (() => void) => {
+    if (!db) {
+        onUpdate([]);
+        return () => {};
+    }
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => docToModel(doc) as T);
+        onUpdate(data);
+    }, (error) => {
+        console.error("Error listening to collection:", error);
+        onUpdate([]);
+    });
+    return unsubscribe;
+};
+
 
 // --- API Functions ---
 
@@ -60,9 +76,6 @@ This ensures your admin credentials are never exposed on the client-side.`);
 
 // CAMPAIGNS
 
-/**
- * Internal helper to parse CSV text and sync to Firestore without using AI.
- */
 const processCampaignCsv = async (csvText: string): Promise<{success: boolean, message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
 
@@ -72,8 +85,8 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
             return { success: false, message: "CSV is empty or contains only a header." };
         }
 
-        const headers = lines[0].split(',').map(h => h.trim());
-        const requiredHeaders = ['id', 'name', 'category', 'active', 'commission'];
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const requiredHeaders = ['id', 'name', 'category', 'active'];
         for (const rh of requiredHeaders) {
             if (!headers.includes(rh)) {
                 return { success: false, message: `Missing required CSV header: ${rh}` };
@@ -84,7 +97,7 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
             const values = line.split(',');
             const campaignObj: {[key: string]: string} = {};
             headers.forEach((header, index) => {
-                campaignObj[header] = values[index] ? values[index].trim() : '';
+                campaignObj[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
             });
             return campaignObj;
         });
@@ -92,9 +105,12 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
         if (campaignsToSync.length === 0) {
             return { success: false, message: "No valid campaign data rows found in the sheet." };
         }
+        
+        const campaignsCol = collection(db, 'campaigns');
+        const existingDocsSnapshot = await getDocs(query(campaignsCol, where('id', 'in', campaignsToSync.map(c => c.id))));
+        const existingIds = new Set(existingDocsSnapshot.docs.map(d => d.id));
 
         const batch = writeBatch(db);
-        const campaignsCol = collection(db, 'campaigns');
 
         campaignsToSync.forEach((campaign: any) => {
             if (campaign.id && typeof campaign.id === 'string' && campaign.name) {
@@ -103,17 +119,23 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
                 const commission = parseFloat(campaign.commission);
                 const active = campaign.active?.toLowerCase() === 'true';
 
-                const campaignData = {
+                const campaignData: Omit<Campaign, 'id' | 'createdAt'> & {createdAt?: any} = {
                     category: campaign.category || 'Uncategorized',
                     name: campaign.name,
                     imageUrl: campaign.imageUrl || '',
                     productUrl: campaign.productUrl || '',
                     shareLink: campaign.shareLink || '',
+                    contentDocUrl: campaign.contentDocUrl || '',
                     commission: !isNaN(commission) ? commission : 0,
                     active: active,
                     adminOrderLink: campaign.adminOrderLink || '',
-                    createdAt: serverTimestamp() // Add or update timestamp on sync
                 };
+
+                // Only set createdAt for new documents to preserve original date
+                if (!existingIds.has(campaign.id.trim())) {
+                    campaignData.createdAt = serverTimestamp();
+                }
+
                 batch.set(docRef, campaignData, { merge: true });
             }
         });
@@ -128,34 +150,24 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
     }
 };
 
-/**
- * Fetches data from a public Google Sheet URL, then uses an AI model to parse and sync it.
- * @param sheetUrl The public URL of the Google Sheet.
- */
 export const syncCampaignsFromGoogleSheet = async (sheetUrl: string): Promise<{success: boolean, message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
     
-    // 1. Extract Sheet ID from URL using a regular expression
     const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     if (!match || !match[1]) {
         return { success: false, message: 'Invalid Google Sheet URL. Please provide a valid link.' };
     }
     const sheetId = match[1];
 
-    // 2. Construct the CSV export URL for the first sheet (gid=0)
     const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
 
     try {
-        // 3. Fetch the CSV data from the constructed URL
         const response = await fetch(csvExportUrl);
         if (!response.ok) {
             throw new Error(`Server responded with status ${response.status}. Please ensure your Google Sheet's sharing setting is "Anyone with the link".`);
         }
         const csvText = await response.text();
-        
-        // 4. Pass the fetched CSV text to the parser and sync function
         return await processCampaignCsv(csvText);
-
     } catch (error) {
         console.error("Error fetching or syncing from Google Sheet:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown network error occurred.";
@@ -164,29 +176,13 @@ export const syncCampaignsFromGoogleSheet = async (sheetUrl: string): Promise<{s
 };
 
 export const listenToCampaigns = (onUpdate: (campaigns: Campaign[]) => void): (() => void) => {
-    if (!db) {
-        onUpdate([]);
-        return () => {}; // Return a no-op unsubscribe function
-    }
-    const campaignsCol = collection(db, 'campaigns');
-    const q = query(campaignsCol, where('active', '==', true));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const campaignsData = snapshot.docs.map(doc => docToModel(doc) as Campaign);
-        onUpdate(campaignsData);
-    }, (error) => {
-        console.error("Error listening to campaigns:", error);
-        onUpdate([]); // On error, provide an empty list
-    });
-
-    return unsubscribe;
+    const q = query(collection(db, 'campaigns'), where('active', '==', true));
+    return createListener<Campaign>(q, onUpdate);
 };
 
-export const fetchAllCampaignsAdmin = async (): Promise<Campaign[]> => {
-    if (!db) return [];
-    const campaignsCol = collection(db, 'campaigns');
-    const snapshot = await getDocs(campaignsCol);
-    return snapshot.docs.map(doc => docToModel(doc) as Campaign);
+export const listenToAllCampaignsAdmin = (onUpdate: (campaigns: Campaign[]) => void): (() => void) => {
+    const q = query(collection(db, 'campaigns'), orderBy('createdAt', 'desc'));
+    return createListener<Campaign>(q, onUpdate);
 };
 
 export const fetchCampaignById = async (id: string): Promise<Campaign | null> => {
@@ -197,12 +193,19 @@ export const fetchCampaignById = async (id: string): Promise<Campaign | null> =>
 };
 
 // SAMPLE REQUESTS
-export const fetchSampleRequests = async (params?: { status?: SampleRequestStatus; affiliateId?: string }): Promise<SampleRequest[]> => {
+export const listenToSampleRequests = (onUpdate: (requests: SampleRequest[]) => void, status?: SampleRequestStatus): (() => void) => {
+    const constraints = [orderBy('createdAt', 'desc')];
+    if (status) {
+        constraints.push(where('status', '==', status));
+    }
+    const q = query(collection(db, 'sampleRequests'), ...constraints);
+    return createListener<SampleRequest>(q, onUpdate);
+};
+
+
+export const fetchSampleRequests = async (params?: { affiliateId?: string }): Promise<SampleRequest[]> => {
     if (!db) return [];
     const constraints = [orderBy('createdAt', 'desc')];
-    if (params?.status) {
-        constraints.push(where('status', '==', params.status));
-    }
     if (params?.affiliateId) {
         constraints.push(where('affiliateId', '==', params.affiliateId));
     }
@@ -216,15 +219,11 @@ export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' 
     if (!db) return { success: false, message: 'Database not connected.' };
     
     const requestsRef = collection(db, 'sampleRequests');
-    const q = query(requestsRef, where('affiliateId', '==', requestData.affiliateId));
+    const q = query(requestsRef, where('affiliateId', '==', requestData.affiliateId), where('campaignId', '==', requestData.campaignId));
     const snapshot = await getDocs(q);
-    const isDuplicate = snapshot.docs.some(doc => {
-        const data = doc.data();
-        return data.fyneVideoUrl === requestData.fyneVideoUrl || data.adCode === requestData.adCode;
-    });
-
-    if (isDuplicate) {
-        return { success: false, message: 'This video URL or Ad Code has already been submitted.'};
+    
+    if (!snapshot.empty) {
+        return { success: false, message: 'You have already submitted a request for this campaign.'};
     }
 
     const campaign = await fetchCampaignById(requestData.campaignId);
@@ -249,22 +248,78 @@ export const updateSampleRequestStatus = async (requestId: string, newStatus: Sa
 };
 
 // LEADERBOARD
-export const fetchLeaderboard = async (): Promise<Leaderboard | null> => {
-    if (!db) return null;
+export const listenToLeaderboard = (onUpdate: (leaderboard: Leaderboard | null) => void): (() => void) => {
+    if (!db) {
+        onUpdate(null);
+        return () => {};
+    }
     const today = new Date().toISOString().split('T')[0];
     const leaderboardDoc = doc(db, 'leaderboard', today);
-    const docSnap = await getDoc(leaderboardDoc);
-    return docToModel(docSnap) as Leaderboard | null;
+    
+    return onSnapshot(leaderboardDoc, (docSnap) => {
+        onUpdate(docToModel(docSnap) as Leaderboard | null);
+    }, (error) => {
+        console.error("Error listening to leaderboard:", error);
+        onUpdate(null);
+    });
+};
+
+export const syncLeaderboardFromGoogleSheet = async (sheetUrl: string): Promise<{success: boolean, message: string}> => {
+    if (!db) return { success: false, message: 'Database not connected.' };
+    
+    const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match || !match[1]) {
+        return { success: false, message: 'Invalid Google Sheet URL.' };
+    }
+    const sheetId = match[1];
+    const csvExportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+
+    try {
+        const response = await fetch(csvExportUrl);
+        if (!response.ok) throw new Error(`Failed to fetch sheet. Is it public? (Status: ${response.status})`);
+        
+        const csvText = await response.text();
+        const lines = csvText.trim().split('\n').filter(line => line.trim() !== '');
+        if (lines.length < 2) return { success: false, message: "CSV is empty." };
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const topAffiliates: LeaderboardEntry[] = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+            const entry: any = {};
+            headers.forEach((header, index) => {
+                const numericHeaders = ['rank', 'totalGMV', 'itemsSold', 'productsInShowcase', 'orders', 'liveGMV', 'videoGMV', 'videoViews'];
+                if (numericHeaders.includes(header)) {
+                    entry[header] = parseFloat(values[index]) || 0;
+                } else {
+                    entry[header] = values[index] || '';
+                }
+            });
+            return entry as LeaderboardEntry;
+        });
+
+        const today = new Date();
+        const leaderboardData: Leaderboard = {
+            date: today,
+            timeframe: `Week of ${today.toLocaleDateString()}`,
+            topAffiliates,
+        };
+        
+        const leaderboardDocRef = doc(db, 'leaderboard', today.toISOString().split('T')[0]);
+        await setDoc(leaderboardDocRef, leaderboardData);
+
+        return { success: true, message: `Leaderboard synced with ${topAffiliates.length} affiliates.` };
+    } catch (error) {
+        console.error("Error syncing leaderboard:", error);
+        const msg = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `Sync failed: ${msg}` };
+    }
 };
 
 
 // RESOURCES
-export const fetchResources = async (): Promise<ResourceArticle[]> => {
-    if (!db) return [];
-    const resourcesCol = collection(db, 'articles');
-    const q = query(resourcesCol, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => docToModel(doc) as ResourceArticle);
+export const listenToResources = (onUpdate: (articles: ResourceArticle[]) => void): (() => void) => {
+    const q = query(collection(db, 'articles'), orderBy('createdAt', 'desc'));
+    return createListener<ResourceArticle>(q, onUpdate);
 };
 
 export const addResource = async (article: Omit<ResourceArticle, 'id'>): Promise<void> => {
@@ -285,12 +340,9 @@ export const deleteResource = async (articleId: string): Promise<void> => {
 };
 
 // INCENTIVES
-export const fetchIncentives = async (): Promise<IncentiveCampaign[]> => {
-    if (!db) return [];
-    const incentivesCol = collection(db, 'incentiveCampaigns');
-    const q = query(incentivesCol, orderBy('startDate', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => docToModel(doc) as IncentiveCampaign);
+export const listenToIncentives = (onUpdate: (incentives: IncentiveCampaign[]) => void): (() => void) => {
+    const q = query(collection(db, 'incentiveCampaigns'), orderBy('startDate', 'desc'));
+    return createListener<IncentiveCampaign>(q, onUpdate);
 };
 
 export const joinIncentiveCampaign = async (campaignId: string): Promise<void> => {
@@ -342,15 +394,14 @@ export const deleteIncentive = async (incentiveId: string): Promise<void> => {
 
 
 // TICKETS
-export const fetchTickets = async (affiliateId?: string): Promise<Ticket[]> => {
-    if (!db) return [];
+export const listenToTickets = (onUpdate: (tickets: Ticket[]) => void, affiliateId?: string): (() => void) => {
     const ticketsCol = collection(db, 'tickets');
     const q = affiliateId 
         ? query(ticketsCol, where('affiliateId', '==', affiliateId), orderBy('createdAt', 'desc'))
         : query(ticketsCol, orderBy('createdAt', 'desc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => docToModel(doc) as Ticket);
+    return createListener<Ticket>(q, onUpdate);
 };
+
 
 export const createTicket = async (data: { affiliateId: string; subject: string; message: string }): Promise<{success: boolean, message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
@@ -395,9 +446,9 @@ export const addMessageToTicket = async (ticketId: string, message: { sender: 'A
         messages.push(newMessage);
         
         let newStatus = ticketData.status;
-        if (message.sender === 'Admin') {
+        if (message.sender === 'Admin' && ticketData.status !== 'Completed') {
             newStatus = 'On-going';
-        } else {
+        } else if (message.sender === 'Affiliate' && ticketData.status !== 'Completed') {
             newStatus = 'Pending';
         }
 

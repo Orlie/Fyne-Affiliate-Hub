@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SampleRequest, SampleRequestStatus } from '../../types';
-import { fetchSampleRequests, updateSampleRequestStatus, fetchAllCampaignsAdmin } from '../../services/mockApi';
+import { listenToSampleRequests, updateSampleRequestStatus, listenToAllCampaignsAdmin } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { Campaign } from '../../types';
@@ -22,39 +22,29 @@ const SampleRequestQueue: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [campaignsLoading, setCampaignsLoading] = useState(true);
 
-  const loadRequests = useCallback(async (tab: QueueTab) => {
+  useEffect(() => {
     setLoading(true);
-    try {
-        const requestData = await fetchSampleRequests({ status: tab });
+    const unsubscribe = listenToSampleRequests((requestData) => {
         setRequests(requestData);
-    } catch(error) {
-        console.error("Failed to load sample requests:", error);
-    } finally {
         setLoading(false);
-    }
-  }, []);
+    }, activeTab);
+
+    return () => unsubscribe();
+  }, [activeTab]);
+
 
   useEffect(() => {
-    const loadCampaigns = async () => {
-        try {
-            const campaignData = await fetchAllCampaignsAdmin();
-            setCampaigns(campaignData);
-        } catch(error) {
-            console.error("Failed to load campaigns:", error);
-        } finally {
-            setCampaignsLoading(false);
-        }
-    };
-    loadCampaigns();
+    setCampaignsLoading(true);
+    const unsubscribe = listenToAllCampaignsAdmin((campaignData) => {
+        setCampaigns(campaignData);
+        setCampaignsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    loadRequests(activeTab);
-  }, [activeTab, loadRequests]);
   
   const handleStatusUpdate = async (requestId: string, newStatus: SampleRequestStatus) => {
+    // UI will update optimistically via the listener
     await updateSampleRequestStatus(requestId, newStatus);
-    loadRequests(activeTab); // Refresh the current queue
   };
 
   return (

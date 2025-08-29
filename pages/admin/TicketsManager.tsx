@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ticket, TicketStatus } from '../../types';
-import { fetchTickets, updateTicketStatus, addMessageToTicket } from '../../services/mockApi';
+import { listenToTickets, updateTicketStatus, addMessageToTicket } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Textarea from '../../components/ui/Textarea';
@@ -14,43 +15,35 @@ const TicketsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TicketStatus>('Pending');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   
-  const loadTickets = useCallback(async () => {
-    setLoading(true);
-    try {
-        const allTickets = await fetchTickets();
-        setTickets(allTickets);
-    } catch (error) {
-        console.error("Failed to load tickets:", error);
-    } finally {
-        setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadTickets();
-  }, [loadTickets]);
+    setLoading(true);
+    const unsubscribe = listenToTickets((allTickets) => {
+        setTickets(allTickets);
+        setLoading(false);
+        // If a selected ticket is updated, refresh its state in the modal
+        if (selectedTicket) {
+            const updatedTicket = allTickets.find(t => t.id === selectedTicket.id);
+            if(updatedTicket) {
+                setSelectedTicket(updatedTicket);
+            } else {
+                setSelectedTicket(null); // It was deleted or status changed
+            }
+        }
+    });
+    return () => unsubscribe();
+  }, [selectedTicket]);
 
   const filteredTickets = tickets.filter(t => t.status === activeTab);
 
   const handleUpdateStatus = async (ticketId: string, status: TicketStatus) => {
+    // UI will update optimistically via the listener
     await updateTicketStatus(ticketId, status);
-    // Optimistically update local state for faster UI response
-    setSelectedTicket(prev => prev && prev.id === ticketId ? { ...prev, status } : prev);
-    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status } : t));
   };
 
   const handleReply = async (ticketId: string, replyText: string) => {
     if (!replyText.trim()) return;
+    // UI will update optimistically via the listener
     await addMessageToTicket(ticketId, { sender: 'Admin', text: replyText });
-    
-    // Refresh data to show new message
-    const refreshedTickets = await fetchTickets();
-    setTickets(refreshedTickets);
-    
-    const updatedTicket = refreshedTickets.find(t => t.id === ticketId);
-    if (updatedTicket) {
-      setSelectedTicket(updatedTicket);
-    }
   };
 
   return (

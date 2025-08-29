@@ -10,7 +10,7 @@ import {
   updatePassword,
   User as FirebaseUser
 } from '@firebase/auth';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 
 
 interface AuthContextType {
@@ -59,6 +59,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return () => unsubscribe();
   }, []);
+
+  // Real-time listener for user status changes (e.g., being banned)
+  useEffect(() => {
+    if (user) {
+      const userDocRef = doc(db, 'users', user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+          // FIX: Removed incorrect type assertion `as AppUser` from `doc.data()` to resolve type error. The `data` from Firestore should be treated as `DocumentData` before converting its `Timestamp` fields to `Date` objects and casting to the final `AppUser` type.
+          const data = doc.data();
+          // If user status is updated to 'Banned', log them out
+          if (data.status === 'Banned') {
+            console.warn("User has been banned. Signing out.");
+            signOut(auth);
+          }
+           // Keep local user state in sync with database
+           if (data && data.createdAt && data.createdAt instanceof Timestamp) {
+                data.createdAt = data.createdAt.toDate();
+            }
+           setUser({ uid: user.uid, ...data } as AppUser);
+        } else {
+            // Document deleted, log user out
+            signOut(auth);
+        }
+      });
+
+      return () => unsubscribe();
+    }
+  }, [user?.uid]);
+
 
   const login = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);

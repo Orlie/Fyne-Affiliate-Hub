@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Campaign } from '../../types';
-import { fetchAllCampaignsAdmin, syncCampaignsFromGoogleSheet } from '../../services/mockApi';
+import { listenToAllCampaignsAdmin, syncCampaignsFromGoogleSheet } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -19,24 +19,17 @@ const CampaignsManager: React.FC = () => {
   const [sheetUrl, setSheetUrl] = useState('');
   
   useEffect(() => {
-    loadCampaigns();
+    setLoading(true);
+    const unsubscribe = listenToAllCampaignsAdmin((data) => {
+        setCampaigns(data);
+        setLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const loadCampaigns = async () => {
-    setLoading(true);
-    try {
-        const data = await fetchAllCampaignsAdmin();
-        setCampaigns(data);
-    } catch (error) {
-        console.error("Failed to load campaigns:", error);
-    } finally {
-        setLoading(false);
-    }
-  };
-  
   const handleDownloadTemplate = () => {
-    const headers = "id,category,name,imageUrl,productUrl,shareLink,commission,active,adminOrderLink";
-    const exampleRow = "PROD001,Skincare,Vitamin C Serum,https://example.com/image.jpg,https://example.com/product,https://example.com/share,15,true,https://example.com/admin_order";
+    const headers = "id,category,name,imageUrl,productUrl,shareLink,contentDocUrl,commission,active,adminOrderLink";
+    const exampleRow = "PROD001,Skincare,Vitamin C Serum,https://example.com/image.jpg,https://example.com/product,https://example.com/share,https://docs.google.com/document/d/...,15,true,https://example.com/admin_order";
     const csvContent = `data:text/csv;charset=utf-8,${headers}\n${exampleRow}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -58,8 +51,7 @@ const CampaignsManager: React.FC = () => {
     setSyncMessage(result.message);
     if (result.success) {
         setSheetUrl('');
-        // Reload campaigns to show the updated list
-        await loadCampaigns();
+        // Data will reload automatically via listener
     }
     setIsSyncing(false);
   };
@@ -111,6 +103,7 @@ const CampaignsManager: React.FC = () => {
                             <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">ID</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Title</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Category</th>
+                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Created At</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Commission</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
                             <th scope="col" className="px-3 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Admin Action</th>
@@ -118,12 +111,13 @@ const CampaignsManager: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800/50">
                         {loading ? (
-                            <tr><td colSpan={6} className="text-center p-4">Loading...</td></tr>
+                            <tr><td colSpan={7} className="text-center p-4">Loading...</td></tr>
                         ) : campaigns.map((campaign) => (
                             <tr key={campaign.id}>
                                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-mono text-gray-500 sm:pl-6">{campaign.id}</td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900 dark:text-white">{campaign.name}</td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{campaign.category}</td>
+                                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{campaign.createdAt?.toLocaleDateString() || 'N/A'}</td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{campaign.commission}%</td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                                     <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${campaign.active ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200'}`}>

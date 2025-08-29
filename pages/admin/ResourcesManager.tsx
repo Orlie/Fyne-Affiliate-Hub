@@ -1,7 +1,9 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ResourceArticle } from '../../types';
-import { fetchResources, addResource, updateResource, deleteResource } from '../../services/mockApi';
+// FIX: Replaced `fetchResources` with `listenToResources` as `fetchResources` is not an exported member.
+import { listenToResources, addResource, updateResource, deleteResource } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -16,21 +18,15 @@ const ResourcesManager: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentResource, setCurrentResource] = useState<Partial<ResourceArticle> | null>(null);
 
-  const loadResources = useCallback(async () => {
-    setLoading(true);
-    try {
-        const data = await fetchResources();
-        setResources(data);
-    } catch(error) {
-        console.error("Failed to load resources:", error);
-    } finally {
-        setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadResources();
-  }, [loadResources]);
+    // FIX: Refactored to use a real-time listener for resources.
+    setLoading(true);
+    const unsubscribe = listenToResources((data) => {
+        setResources(data);
+        setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleOpenModal = (resource?: ResourceArticle) => {
     setCurrentResource(resource || { category: 'Daily Content Briefs' });
@@ -59,7 +55,7 @@ const ResourcesManager: React.FC = () => {
         alert("Error saving resource. Please try again.");
     }
     
-    loadResources();
+    // FIX: Removed manual call to loadResources() as the listener will update the data automatically.
     handleCloseModal();
   };
 
@@ -67,7 +63,7 @@ const ResourcesManager: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this resource?')) {
         try {
             await deleteResource(resourceId);
-            loadResources();
+            // FIX: Removed manual call to loadResources() as the listener will update the data automatically.
         } catch (error) {
             console.error("Failed to delete resource:", error);
             alert("Error deleting resource. Please try again.");

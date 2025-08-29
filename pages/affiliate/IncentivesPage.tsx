@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { IncentiveCampaign } from '../../types';
-import { fetchIncentives, joinIncentiveCampaign } from '../../services/mockApi';
+import { listenToIncentives, joinIncentiveCampaign } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 
@@ -11,18 +12,12 @@ const IncentivesPage: React.FC = () => {
     const [joinedCampaigns, setJoinedCampaigns] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                const data = await fetchIncentives();
-                setIncentives(data);
-            } catch(error) {
-                console.error("Failed to load incentives:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
+        setLoading(true);
+        const unsubscribe = listenToIncentives((data) => {
+            setIncentives(data);
+            setLoading(false);
+        });
+        return () => unsubscribe();
     }, []);
     
     const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -30,17 +25,16 @@ const IncentivesPage: React.FC = () => {
     const handleJoinCampaign = async (campaignId: string) => {
         if (joinedCampaigns.has(campaignId)) return;
 
+        // Optimistically update UI
         setJoinedCampaigns(prev => new Set(prev).add(campaignId));
 
         try {
             await joinIncentiveCampaign(campaignId);
-            // Refresh data after joining
-            const data = await fetchIncentives();
-            setIncentives(data);
+            // Data will refresh automatically via the listener
         } catch (error) {
             console.error("Failed to join campaign:", error);
             alert("There was an error joining the campaign. Please try again.");
-            // Revert optimistic state update
+            // Revert optimistic state update on error
             setJoinedCampaigns(prev => {
                 const newSet = new Set(prev);
                 newSet.delete(campaignId);

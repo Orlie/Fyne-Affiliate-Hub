@@ -33,7 +33,7 @@ export interface Campaign {
   commission?: number;
   active: boolean;
   adminOrderLink: string; // from 'orderLink' column, for admins only
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 export interface SampleRequest {

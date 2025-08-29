@@ -1,9 +1,10 @@
 
 
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { IncentiveCampaign } from '../../types';
-import { fetchIncentives, addIncentive, updateIncentive, deleteIncentive } from '../../services/mockApi';
+import { listenToIncentives, addIncentive, updateIncentive, deleteIncentive } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -15,21 +16,14 @@ const IncentivesManager: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentIncentive, setCurrentIncentive] = useState<Omit<Partial<IncentiveCampaign>, 'rules'> & { rules?: string } | null>(null);
 
-  const loadIncentives = useCallback(async () => {
-    setLoading(true);
-    try {
-        const data = await fetchIncentives();
-        setIncentives(data);
-    } catch(error) {
-        console.error("Failed to load incentives:", error);
-    } finally {
-        setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadIncentives();
-  }, [loadIncentives]);
+    setLoading(true);
+    const unsubscribe = listenToIncentives((data) => {
+        setIncentives(data);
+        setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleOpenModal = (incentive?: IncentiveCampaign) => {
     const editableIncentive = incentive 
@@ -68,7 +62,7 @@ const IncentivesManager: React.FC = () => {
           const { id, joinedAffiliates, status, ...createData } = dataToSave;
           await addIncentive(createData as Omit<IncentiveCampaign, 'id'|'joinedAffiliates'|'status'>);
         }
-        loadIncentives();
+        // Data reloads via listener
         handleCloseModal();
     } catch (error) {
         console.error("Failed to save incentive:", error);
@@ -80,7 +74,7 @@ const IncentivesManager: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this incentive program?')) {
         try {
           await deleteIncentive(incentiveId);
-          loadIncentives();
+          // Data reloads via listener
         } catch(error) {
             console.error("Failed to delete incentive:", error);
             alert("Error deleting incentive. Please try again.");

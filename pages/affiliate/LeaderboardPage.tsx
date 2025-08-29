@@ -1,7 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Leaderboard } from '../../types';
-import { fetchLeaderboard } from '../../services/mockApi';
+// FIX: Replaced `fetchLeaderboard` with `listenToLeaderboard` as `fetchLeaderboard` is not exported from the API.
+import { listenToLeaderboard } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 
 const LeaderboardPage: React.FC = () => {
@@ -9,18 +11,13 @@ const LeaderboardPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                const data = await fetchLeaderboard();
-                setLeaderboard(data);
-            } catch (error) {
-                console.error("Failed to load leaderboard:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
+        // FIX: The component is now updated to use the listener pattern for real-time data updates.
+        setLoading(true);
+        const unsubscribe = listenToLeaderboard((data) => {
+            setLeaderboard(data);
+            setLoading(false);
+        });
+        return () => unsubscribe();
     }, []);
 
     if (loading) return <p className="p-4 text-center">Loading leaderboard...</p>;

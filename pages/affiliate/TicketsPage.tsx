@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Ticket } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { fetchTickets, createTicket, addMessageToTicket } from '../../services/mockApi';
+import { listenToTickets, createTicket, addMessageToTicket } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -18,29 +18,24 @@ const TicketsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
 
-    const loadTickets = useCallback(async () => {
+    useEffect(() => {
         if (!user) return;
         setLoading(true);
-        try {
-            const data = await fetchTickets(user.uid);
+        const unsubscribe = listenToTickets((data) => {
             setTickets(data);
-        } catch(error) {
-            console.error("Failed to load tickets:", error);
-        } finally {
             setLoading(false);
-        }
+        }, user.uid);
+        
+        return () => unsubscribe();
     }, [user]);
 
-    useEffect(() => {
-        loadTickets();
-    }, [loadTickets]);
 
     const handleCreateTicket = async (subject: string, message: string) => {
         if (!user) return;
         const result = await createTicket({ affiliateId: user.uid, subject, message });
         if (result.success) {
             setIsModalOpen(false);
-            loadTickets();
+            // Data will refresh via listener
         } else {
             alert(`Failed to create ticket: ${result.message}`);
         }
@@ -48,8 +43,8 @@ const TicketsPage: React.FC = () => {
 
     const handleReply = async (ticketId: string, text: string) => {
         if (!text.trim()) return;
+        // Data will refresh via listener
         await addMessageToTicket(ticketId, { sender: 'Affiliate', text });
-        loadTickets();
     };
 
     const toggleExpand = (ticketId: string) => {
