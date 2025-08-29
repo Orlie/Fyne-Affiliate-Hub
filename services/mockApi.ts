@@ -202,17 +202,7 @@ export const listenToSampleRequests = (onUpdate: (requests: SampleRequest[]) => 
 
 
 export const listenToSampleRequestsForAffiliate = (affiliateId: string, onUpdate: (requests: SampleRequest[]) => void): (() => void) => {
-    const q = query(collection(db, 'sampleRequests'), where('affiliateId', '==', affiliateId), orderBy('createdAt', 'desc'));
-    return createListener<SampleRequest>(q, onUpdate);
-};
-
-export const listenToPendingTasksForAffiliate = (affiliateId: string, onUpdate: (requests: SampleRequest[]) => void): (() => void) => {
-    const q = query(
-        collection(db, 'sampleRequests'), 
-        where('affiliateId', '==', affiliateId), 
-        where('status', '==', 'PendingShowcase'),
-        orderBy('createdAt', 'desc')
-    );
+    const q = query(collection(db, 'sampleRequests'), where('affiliateId', '==', affiliateId));
     return createListener<SampleRequest>(q, onUpdate);
 };
 

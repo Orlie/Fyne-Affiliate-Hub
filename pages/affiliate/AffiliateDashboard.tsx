@@ -3,7 +3,7 @@
 import React from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ClipboardCheckIcon, HomeIcon, TrophyIcon, LightbulbIcon, GiftIcon, UserCircleIcon } from '../../components/icons/Icons';
+import { ClipboardCheckIcon, TagIcon, UserCircleIcon } from '../../components/icons/Icons';
 import TasksPage from './TasksPage';
 import CampaignsPage from './CampaignsPage';
 import CampaignDetailPage from './CampaignDetailPage';
@@ -13,14 +13,11 @@ import IncentivesPage from './IncentivesPage';
 import ProfilePage from './ProfilePage';
 import TicketsPage from './TicketsPage';
 
-type AffiliateTab = '' | 'campaigns' | 'leaderboard' | 'resources' | 'incentives' | 'profile';
+type AffiliateTab = '' | 'campaigns' | 'profile';
 
 const TABS: { id: AffiliateTab; label: string; icon: React.FC<{className?:string}> }[] = [
     { id: '', label: 'Tasks', icon: ClipboardCheckIcon },
-    { id: 'campaigns', label: 'Campaigns', icon: HomeIcon },
-    { id: 'leaderboard', label: 'Leaderboard', icon: TrophyIcon },
-    { id: 'resources', label: 'Resources', icon: LightbulbIcon },
-    { id: 'incentives', label: 'Incentives', icon: GiftIcon },
+    { id: 'campaigns', label: 'Campaigns', icon: TagIcon },
     { id: 'profile', label: 'Profile', icon: UserCircleIcon },
 ];
 
@@ -33,14 +30,17 @@ const AffiliateDashboard: React.FC = () => {
     const currentPath = location.pathname.split('/')[1] || '';
     
     let activeTabId: AffiliateTab;
-    if (currentPath === 'campaign') {
-        activeTabId = 'campaigns';
-    } else if (currentPath === 'tickets') {
-        activeTabId = 'profile';
-    } else {
+    if (currentPath === 'campaign' || TABS.map(t => t.id).includes(currentPath as AffiliateTab)) {
         activeTabId = currentPath as AffiliateTab;
+        if (currentPath.startsWith('campaign')) activeTabId = 'campaigns';
+    } else {
+        // If the path is for a page now nested under profile, set profile as active
+        if (['leaderboard', 'resources', 'incentives', 'tickets'].includes(currentPath)) {
+            activeTabId = 'profile';
+        } else {
+            activeTabId = '';
+        }
     }
-
 
     return (
         <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-black font-sans">

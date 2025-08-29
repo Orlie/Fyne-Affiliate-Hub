@@ -1,13 +1,13 @@
 
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Card, { CardContent } from '../../components/ui/Card';
-import { SunIcon, MoonIcon, LogoutIcon } from '../../components/icons/Icons';
+import { SunIcon, MoonIcon, LogoutIcon, TrophyIcon, LightbulbIcon, GiftIcon, ChevronRightIcon } from '../../components/icons/Icons';
 
 const ProfilePage: React.FC = () => {
     const { user, updateProfile, logout, changePassword } = useAuth();
@@ -63,6 +63,16 @@ const ProfilePage: React.FC = () => {
     return (
         <div className="p-4 space-y-6">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white text-center">My Profile</h2>
+
+            <Card>
+                <CardContent>
+                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                        <ProfileMenuItem label="Leaderboard" icon={TrophyIcon} to="/leaderboard" />
+                        <ProfileMenuItem label="Resources" icon={LightbulbIcon} to="/resources" />
+                        <ProfileMenuItem label="Incentives" icon={GiftIcon} to="/incentives" />
+                    </div>
+                </CardContent>
+            </Card>
             
             <Card>
                 <CardContent>
@@ -116,5 +126,24 @@ const ProfilePage: React.FC = () => {
         </div>
     );
 };
+
+interface ProfileMenuItemProps {
+    label: string;
+    icon: React.FC<{className?: string}>;
+    to: string;
+}
+
+const ProfileMenuItem: React.FC<ProfileMenuItemProps> = ({ label, icon: Icon, to }) => {
+    return (
+        <Link to={to} className="flex items-center justify-between py-3 group">
+            <div className="flex items-center">
+                <Icon className="h-6 w-6 text-gray-500 dark:text-gray-400 group-hover:text-primary-600" />
+                <span className="ml-4 font-medium text-gray-800 dark:text-gray-200 group-hover:text-primary-600">{label}</span>
+            </div>
+            <ChevronRightIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+        </Link>
+    );
+};
+
 
 export default ProfilePage;

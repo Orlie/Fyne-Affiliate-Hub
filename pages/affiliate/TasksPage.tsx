@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Campaign, SampleRequest } from '../../types';
-import { listenToPendingTasksForAffiliate, fetchCampaignById, affiliateConfirmsShowcase } from '../../services/mockApi';
+import { listenToSampleRequestsForAffiliate, fetchCampaignById, affiliateConfirmsShowcase, listenToCampaigns } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -11,26 +11,40 @@ interface Task extends SampleRequest {
 
 const TasksPage: React.FC = () => {
     const { user } = useAuth();
-    const [tasks, setTasks] = useState<Task[]>([]);
+    const [allRequests, setAllRequests] = useState<SampleRequest[]>([]);
+    const [campaigns, setCampaigns] = useState<Map<string, Campaign>>(new Map());
     const [loading, setLoading] = useState(true);
     const [confirming, setConfirming] = useState<string | null>(null);
 
     useEffect(() => {
         if (!user) return;
         setLoading(true);
-        const unsubscribe = listenToPendingTasksForAffiliate(user.uid, async (requests) => {
-            const tasksWithCampaigns = await Promise.all(
-                requests.map(async (req) => {
-                    const campaign = await fetchCampaignById(req.campaignId);
-                    return { ...req, campaign: campaign || undefined };
-                })
-            );
-            setTasks(tasksWithCampaigns);
+
+        const unsubCampaigns = listenToCampaigns((campaignData) => {
+            setCampaigns(new Map(campaignData.map(c => [c.id, c])));
+        });
+        
+        const unsubRequests = listenToSampleRequestsForAffiliate(user.uid, (requests) => {
+            setAllRequests(requests);
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubCampaigns();
+            unsubRequests();
+        };
     }, [user]);
+
+    const tasks: Task[] = useMemo(() => {
+        return allRequests
+            .filter(req => req.status === 'PendingShowcase')
+            .map(req => ({
+                ...req,
+                campaign: campaigns.get(req.campaignId),
+            }))
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }, [allRequests, campaigns]);
+
 
     const handleConfirmShowcase = async (task: Task) => {
         if (!task.campaign?.shareLink || confirming) return;
