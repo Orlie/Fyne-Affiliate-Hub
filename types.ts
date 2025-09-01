@@ -113,3 +113,7 @@ export interface PasswordResetRequest {
   status: 'pending' | 'resolved';
   createdAt: Date;
 }
+
+export interface GlobalSettings {
+  requireVideoApproval: boolean;
+}

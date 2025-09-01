@@ -2,7 +2,7 @@
 
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
-    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest
+    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings
 } from '../types';
 import { db } from '../firebase';
 // FIX: Updated the `firebase/firestore` import to use the `@firebase/firestore` scope for consistency.
@@ -44,6 +44,32 @@ const createListener = <T>(q: any, onUpdate: (data: T[]) => void): (() => void) 
 
 
 // --- API Functions ---
+
+// SETTINGS
+export const listenToGlobalSettings = (onUpdate: (settings: GlobalSettings) => void): (() => void) => {
+    if (!db) {
+        onUpdate({ requireVideoApproval: true }); // Default
+        return () => {};
+    }
+    const settingsDoc = doc(db, 'settings', 'global');
+    return onSnapshot(settingsDoc, (docSnap) => {
+        if (docSnap.exists()) {
+            onUpdate(docSnap.data() as GlobalSettings);
+        } else {
+            // If settings don't exist, provide a default
+            onUpdate({ requireVideoApproval: true });
+        }
+    }, (error) => {
+        console.error("Error listening to settings:", error);
+        onUpdate({ requireVideoApproval: true }); // Default on error
+    });
+};
+
+export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): Promise<void> => {
+    if (!db) return;
+    const settingsDoc = doc(db, 'settings', 'global');
+    await setDoc(settingsDoc, settings, { merge: true });
+};
 
 // USERS
 export const listenToAllAffiliates = (onUpdate: (users: User[]) => void): (() => void) => {
