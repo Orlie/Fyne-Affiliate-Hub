@@ -96,14 +96,20 @@ const CampaignDetailPage: React.FC = () => {
     };
 
     const handleAddToShowcase = async () => {
-        if (!request || !campaign) return;
+        if (!campaign) return; // Guard clause to ensure campaign is loaded
+        
+        // Always open the share link
         window.open(campaign.shareLink, '_blank');
-        try {
-            await affiliateConfirmsShowcase(request.id);
-            // UI will update via listener, moving status to 'PendingOrder'
-        } catch (error) {
-            console.error("Failed to confirm showcase add:", error);
-            setError("There was an issue confirming your action. Please try again.");
+
+        // Conditionally update the status if a sample request exists
+        if (request) {
+            try {
+                await affiliateConfirmsShowcase(request.id);
+                // UI will update via listener, moving status to 'PendingOrder'
+            } catch (error) {
+                console.error("Failed to confirm showcase add:", error);
+                setError("There was an issue confirming your action. Please try again.");
+            }
         }
     };
     
