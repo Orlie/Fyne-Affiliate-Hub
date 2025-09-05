@@ -1,9 +1,7 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Campaign, SampleRequest, SampleRequestStatus, GlobalSettings } from '../../types';
-import { fetchCampaignById, submitSampleRequest, listenToSampleRequestsForAffiliate, affiliateConfirmsShowcase, listenToGlobalSettings } from '../../services/mockApi';
+import { fetchCampaignById, submitSampleRequest, listenToSampleRequestsForAffiliate, affiliateConfirmsShowcase, listenToGlobalSettings, createDirectSampleRequest } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -30,11 +28,18 @@ const CampaignDetailPage: React.FC = () => {
     const [settings, setSettings] = useState<GlobalSettings | null>(null);
     const [loading, setLoading] = useState(true);
     
+    // State for video submission form
     const [fyneVideoUrl, setFyneVideoUrl] = useState('');
     const [adCode, setAdCode] = useState('');
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // State for showcase confirmation action
+    const [isConfirming, setIsConfirming] = useState(false);
+    const [showcaseError, setShowcaseError] = useState('');
+    const [showcaseSuccess, setShowcaseSuccess] = useState('');
+
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -96,20 +101,36 @@ const CampaignDetailPage: React.FC = () => {
     };
 
     const handleAddToShowcase = async () => {
-        if (!campaign) return; // Guard clause to ensure campaign is loaded
+        if (!campaign || !user || isConfirming) return;
         
-        // Always open the share link
+        setShowcaseError('');
+        setShowcaseSuccess('');
+        setIsConfirming(true);
+
+        // Always open the share link in a new tab
         window.open(campaign.shareLink, '_blank');
 
-        // Conditionally update the status if a sample request exists
-        if (request) {
-            try {
+        try {
+            // Case 1: A request already exists and it's pending showcase confirmation
+            if (request && request.status === 'PendingShowcase') {
                 await affiliateConfirmsShowcase(request.id);
                 // UI will update via listener, moving status to 'PendingOrder'
-            } catch (error) {
-                console.error("Failed to confirm showcase add:", error);
-                setError("There was an issue confirming your action. Please try again.");
+            } 
+            // Case 2 (THE FIX): No request exists AND video approval is NOT required
+            else if (!request && !settings?.requireVideoApproval) {
+                const result = await createDirectSampleRequest(user.uid, campaign.id);
+                if (result.success) {
+                    setShowcaseSuccess("Confirmed! Admin has been notified to order your sample.");
+                } else {
+                    // This might happen if there's a race condition or they already requested
+                    setShowcaseError(result.message);
+                }
             }
+        } catch (error) {
+            console.error("Failed to confirm showcase add:", error);
+            setShowcaseError("There was an issue confirming your action. Please try again.");
+        } finally {
+            setIsConfirming(false);
         }
     };
     
@@ -235,11 +256,13 @@ const CampaignDetailPage: React.FC = () => {
                                     <Button 
                                         className="w-full"
                                         data-testid="showcase-button"
-                                        disabled={!isUnlocked}
+                                        disabled={!isUnlocked || isConfirming}
                                         onClick={handleAddToShowcase}
                                     >
-                                        Add to Showcase & Confirm
+                                        {isConfirming ? 'Confirming...' : 'Add to Showcase & Confirm'}
                                     </Button>
+                                    {showcaseError && <p className="text-center text-red-500 text-sm mt-2">{showcaseError}</p>}
+                                    {showcaseSuccess && <p className="text-center text-green-500 text-sm mt-2">{showcaseSuccess}</p>}
                                 </div>
                             </div>
                             {!isUnlocked && (

@@ -1,5 +1,3 @@
-
-
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings
@@ -306,6 +304,36 @@ export const submitSampleRequest = async (requestData: Omit<SampleRequest, 'id' 
     };
     await addDoc(requestsRef, newRequest);
     return { success: true, message: 'Request submitted successfully! It is now pending admin approval.'};
+}
+
+export const createDirectSampleRequest = async (affiliateId: string, campaignId: string): Promise<{success: boolean; message: string}> => {
+    if (!db) return { success: false, message: 'Database not connected.' };
+    
+    const requestsRef = collection(db, 'sampleRequests');
+    // Ensure no duplicate request is made
+    const q = query(requestsRef, where('affiliateId', '==', affiliateId), where('campaignId', '==', campaignId));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+        return { success: false, message: 'You have already submitted a request for this campaign.'};
+    }
+
+    const campaign = await fetchCampaignById(campaignId);
+    const affiliateDoc = await getDoc(doc(db, 'users', affiliateId));
+    const affiliate = affiliateDoc.data();
+
+    const newRequest = {
+        affiliateId,
+        campaignId,
+        campaignName: campaign?.name || 'Unknown Campaign',
+        affiliateTiktok: affiliate?.tiktokUsername || '@unknown',
+        fyneVideoUrl: '', // This flow doesn't involve a video
+        adCode: '', // Nor an ad code
+        status: 'PendingOrder' as const,
+        createdAt: serverTimestamp(),
+    };
+    await addDoc(requestsRef, newRequest);
+    return { success: true, message: 'Request created and sent to admin for ordering.'};
 }
 
 export const updateSampleRequestStatus = async (requestId: string, newStatus: SampleRequestStatus): Promise<void> => {
