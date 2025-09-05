@@ -51,6 +51,7 @@ const AffiliatesManager: React.FC = () => {
                 <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Display Name</th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Email</th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">TikTok</th>
+                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Discord</th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Joined</th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
                 <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right text-sm font-semibold">
@@ -60,7 +61,7 @@ const AffiliatesManager: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800/50">
               {loading ? (
-                <tr><td colSpan={6} className="text-center p-4">Loading affiliates...</td></tr>
+                <tr><td colSpan={7} className="text-center p-4">Loading affiliates...</td></tr>
               ) : affiliates.map((affiliate) => {
                 const status = affiliate.status || 'Verified';
                 return (
@@ -68,6 +69,7 @@ const AffiliatesManager: React.FC = () => {
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">{affiliate.displayName}</td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{affiliate.email}</td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{affiliate.tiktokUsername}</td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{affiliate.discordUsername}</td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {affiliate.createdAt ? affiliate.createdAt.toLocaleDateString() : 'N/A'}
                     </td>
