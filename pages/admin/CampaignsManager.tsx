@@ -24,7 +24,7 @@ const CampaignsManager: React.FC = () => {
   }, []);
 
   const handleDownloadTemplate = () => {
-    const headers = "id,category,name,imageUrl,productUrl,shareLink,contentDocUrl,commission,active,adminOrderLink,createdAt";
+    const headers = "id,category,name,imageUrl,productUrl,shareLink,contentDocUrl,commission,active,orderLink,createdAt";
     const exampleRow = `PROD001,Skincare,Vitamin C Serum,https://example.com/image.jpg,https://example.com/product,https://example.com/share,https://docs.google.com/document/d/...,15,true,https://example.com/admin_order,${new Date().toISOString()}`;
     const csvContent = `data:text/csv;charset=utf-8,${headers}\n${exampleRow}`;
     const encodedUri = encodeURI(csvContent);
@@ -121,8 +121,8 @@ const CampaignsManager: React.FC = () => {
                                     </span>
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-center">
-                                    <a href={campaign.adminOrderLink} target="_blank" rel="noopener noreferrer">
-                                        <Button size="sm" variant="secondary" disabled={!campaign.adminOrderLink}>
+                                    <a href={campaign.orderLink} target="_blank" rel="noopener noreferrer">
+                                        <Button size="sm" variant="secondary" disabled={!campaign.orderLink}>
                                             Purchase
                                         </Button>
                                     </a>

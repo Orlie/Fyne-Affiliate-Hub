@@ -199,7 +199,7 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
                     contentDocUrl: campaign.contentDocUrl || '',
                     commission: !isNaN(commission) ? commission : 0,
                     active: active,
-                    adminOrderLink: campaign.adminOrderLink || '',
+                    orderLink: campaign.orderLink || '',
                 };
 
                 // Handle creation date

@@ -32,7 +32,7 @@ export interface Campaign {
   availabilityEnd?: Date;
   commission?: number;
   active: boolean;
-  adminOrderLink: string; // from 'orderLink' column, for admins only
+  orderLink: string; // from 'orderLink' column, for admins only
   createdAt?: Date;
 }
 

@@ -119,8 +119,8 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, campaign, onStatusUp
             case 'PendingOrder':
                 return (
                      <div className="flex flex-col space-y-2 w-full">
-                        {campaign?.adminOrderLink ? (
-                            <a href={campaign.adminOrderLink} target="_blank" rel="noopener noreferrer" className="w-full">
+                        {campaign?.orderLink ? (
+                            <a href={campaign.orderLink} target="_blank" rel="noopener noreferrer" className="w-full">
                                 <Button size="sm" className="w-full" data-testid="order-link-button">
                                     Purchase Sample
                                 </Button>
