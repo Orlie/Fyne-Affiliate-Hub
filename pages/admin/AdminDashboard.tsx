@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Button from '../../components/ui/Button';
-import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon, KeyIcon, Cog6ToothIcon } from '../../components/icons/Icons';
+import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon, KeyIcon, Cog6ToothIcon, ClipboardCheckIcon } from '../../components/icons/Icons';
 import SampleRequestQueue from './SampleRequestQueue';
 import AiChatbotManager from './AiChatbotManager';
 import CampaignsManager from './CampaignsManager';
@@ -15,25 +15,34 @@ import TicketsManager from './TicketsManager';
 import AffiliatesManager from './AffiliatesManager';
 import PasswordResetManager from './PasswordResetManager';
 import SettingsManager from './SettingsManager';
-import { listenToPasswordResetRequests } from '../../services/mockApi';
-import { PasswordResetRequest } from '../../types';
+import OnboardingManager from './OnboardingManager';
+import { listenToPasswordResetRequests, listenToPendingOnboardingRequests } from '../../services/mockApi';
+import { User, PasswordResetRequest } from '../../types';
 
 
-type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets' | 'hub-settings';
+type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets' | 'hub-settings' | 'onboarding';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<AdminTab>('requests');
+  const [activeTab, setActiveTab] = useState<AdminTab>('onboarding');
   const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
+  const [onboardingRequests, setOnboardingRequests] = useState<User[]>([]);
 
   useEffect(() => {
     const unsubscribe = listenToPasswordResetRequests(setResetRequests);
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = listenToPendingOnboardingRequests(setOnboardingRequests);
+    return () => unsubscribe();
+  }, []);
+
   const renderContent = () => {
     switch (activeTab) {
+      case 'onboarding':
+        return <OnboardingManager requests={onboardingRequests} />;
       case 'requests':
         return <SampleRequestQueue />;
       case 'campaigns':
@@ -57,7 +66,8 @@ const AdminDashboard: React.FC = () => {
        case 'analytics':
         return <div className="p-8 text-gray-800 dark:text-gray-200">Analytics & Reporting (Coming Soon)</div>;
       default:
-        return <SampleRequestQueue />;
+        // FIX: Added missing 'requests' prop to OnboardingManager to resolve TypeScript error.
+        return <OnboardingManager requests={onboardingRequests} />;
     }
   };
 
@@ -69,6 +79,7 @@ const AdminDashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">Admin Hub</h1>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2">
+          <AdminNavLink text="Onboarding" icon={ClipboardCheckIcon} active={activeTab === 'onboarding'} onClick={() => setActiveTab('onboarding')} badge={onboardingRequests.length > 0 ? onboardingRequests.length : undefined} />
           <AdminNavLink text="Sample Requests" icon={DocumentTextIcon} active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
           <AdminNavLink text="Campaigns" icon={TagIcon} active={activeTab === 'campaigns'} onClick={() => setActiveTab('campaigns')} />
           <AdminNavLink text="Affiliates" icon={UsersIcon} active={activeTab === 'affiliates'} onClick={() => setActiveTab('affiliates')} />

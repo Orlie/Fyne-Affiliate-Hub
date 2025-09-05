@@ -75,6 +75,17 @@ export const listenToAllAffiliates = (onUpdate: (users: User[]) => void): (() =>
     return createListener<User>(q, onUpdate);
 };
 
+export const listenToPendingOnboardingRequests = (onUpdate: (users: User[]) => void): (() => void) => {
+    const q = query(collection(db, 'users'), where('role', '==', 'Affiliate'), where('onboardingStatus', '==', 'pendingAdminAuthorization'), orderBy('createdAt', 'asc'));
+    return createListener<User>(q, onUpdate);
+};
+
+export const updateUserOnboardingStatus = async (userId: string, status: User['onboardingStatus']): Promise<void> => {
+    if (!db) return;
+    const userDoc = doc(db, 'users', userId);
+    await updateDoc(userDoc, { onboardingStatus: status });
+};
+
 export const updateAffiliateStatus = async (userId: string, newStatus: 'Verified' | 'Banned'): Promise<void> => {
     if (!db) return;
     const userDoc = doc(db, 'users', userId);
