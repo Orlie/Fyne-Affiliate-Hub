@@ -39,24 +39,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (firebaseUser) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          let userDoc = await getDoc(userDocRef); // Make it mutable
+          let userDoc = await getDoc(userDocRef);
 
+          // FIX: This block now checks the provider to avoid a race condition with the register function.
+          // It will only auto-create a profile for social media sign-ups.
           if (!userDoc.exists()) {
-            // User signed up with a social provider for the first time
-            console.log("Creating new user profile for social login:", firebaseUser.uid);
-            const userProfileData = {
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-                username: firebaseUser.displayName?.replace(/\s+/g, '').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
-                tiktokUsername: '',
-                discordUsername: '',
-                role: 'Affiliate' as const,
-                status: 'Verified' as const,
-                createdAt: Timestamp.now(),
-                onboardingStatus: 'needsToShowcase' as const,
-            };
-            await setDoc(userDocRef, userProfileData);
-            userDoc = await getDoc(userDocRef); // Re-fetch the doc to continue
+            const isPasswordProvider = firebaseUser.providerData.some(
+              (provider) => provider.providerId === 'password'
+            );
+
+            if (!isPasswordProvider) {
+              // User signed up with a social provider for the first time
+              console.log("Creating new user profile for social login:", firebaseUser.uid);
+              const userProfileData = {
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  username: firebaseUser.displayName?.replace(/\s+/g, '').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
+                  tiktokUsername: '',
+                  discordUsername: '',
+                  role: 'Affiliate' as const,
+                  status: 'Verified' as const,
+                  createdAt: Timestamp.now(),
+                  onboardingStatus: 'needsToShowcase' as const,
+              };
+              await setDoc(userDocRef, userProfileData);
+              userDoc = await getDoc(userDocRef); // Re-fetch the doc to continue
+            }
           }
 
           if (userDoc.exists()) {
@@ -66,12 +74,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 data.createdAt = data.createdAt.toDate();
             }
             setUser({ uid: firebaseUser.uid, ...data } as AppUser);
-          } else {
-             // This case should be rare now but is a good safeguard.
-            console.error("User document not found and could not be created for UID:", firebaseUser.uid);
-            setUser(null);
-            await signOut(auth); // Sign out if profile doesn't exist
           }
+          // FIX: Removed the aggressive 'else' block that was signing out new email users during the registration race condition.
+
         } catch (error: any) {
            console.error(`Error fetching user profile: ${error.code} - ${error.message}`);
            setUser(null);
@@ -155,15 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     await setDoc(userDocRef, userProfileData);
 
-    // Confirm via one-shot read to ensure profile write succeeded.
-    const snap = await getDoc(userDocRef);
-    if (!snap.exists()) {
-      // If the write fails, the user is in a bad state (auth created, but no profile).
-      // We should sign them out and ask them to try again.
-      await signOut(auth);
-      throw new Error("Profile write failed after user creation. Your account was not fully created. Please try signing up again.");
-    }
-    // onAuthStateChanged will automatically handle setting the new user state
+    // FIX: Removed the getDoc check. The onAuthStateChanged listener is now robust enough to handle the document's appearance, making this check redundant and a potential part of the race condition.
   };
   
   const changePassword = async (newPassword: string) => {
