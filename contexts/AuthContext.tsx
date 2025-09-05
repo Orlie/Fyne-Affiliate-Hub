@@ -8,7 +8,10 @@ import {
   signOut, 
   createUserWithEmailAndPassword,
   updatePassword,
-  User as FirebaseUser
+  User as FirebaseUser,
+  GoogleAuthProvider,
+  OAuthProvider,
+  signInWithPopup
 } from '@firebase/auth';
 import { doc, getDoc, setDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 
@@ -21,6 +24,8 @@ interface AuthContextType {
   updateProfile: (data: Partial<AppUser>) => Promise<void>;
   register: (details: { displayName: string; username: string; email: string; tiktokUsername: string; discordUsername: string; }, password: string) => Promise<void>;
   changePassword: (newPassword: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,7 +39,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (firebaseUser) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
+          let userDoc = await getDoc(userDocRef); // Make it mutable
+
+          if (!userDoc.exists()) {
+            // User signed up with a social provider for the first time
+            console.log("Creating new user profile for social login:", firebaseUser.uid);
+            const userProfileData = {
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                username: firebaseUser.displayName?.replace(/\s+/g, '').toLowerCase() || firebaseUser.email?.split('@')[0] || `user_${firebaseUser.uid.substring(0,6)}`,
+                tiktokUsername: '',
+                discordUsername: '',
+                role: 'Affiliate' as const,
+                status: 'Verified' as const,
+                createdAt: Timestamp.now(),
+            };
+            await setDoc(userDocRef, userProfileData);
+            userDoc = await getDoc(userDocRef); // Re-fetch the doc to continue
+          }
+
           if (userDoc.exists()) {
             const data = userDoc.data();
             // Convert Firestore Timestamp to JS Date
@@ -43,7 +66,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setUser({ uid: firebaseUser.uid, ...data } as AppUser);
           } else {
-            console.error("User document not found in Firestore for UID:", firebaseUser.uid);
+             // This case should be rare now but is a good safeguard.
+            console.error("User document not found and could not be created for UID:", firebaseUser.uid);
             setUser(null);
             await signOut(auth); // Sign out if profile doesn't exist
           }
@@ -146,8 +170,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await updatePassword(currentUser, newPassword);
   }
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
+
+  const signInWithApple = async () => {
+    const provider = new OAuthProvider('apple.com');
+    await signInWithPopup(auth, provider);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, register, changePassword }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, register, changePassword, signInWithGoogle, signInWithApple }}>
       {children}
     </AuthContext.Provider>
   );

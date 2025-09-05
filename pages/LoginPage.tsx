@@ -4,10 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import { SunIcon, MoonIcon } from '../components/icons/Icons';
+import { SunIcon, MoonIcon, GoogleIcon, AppleIcon } from '../components/icons/Icons';
 
 const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, signInWithGoogle, signInWithApple } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,6 +38,26 @@ const LoginPage: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  const handleSocialLogin = async (provider: 'google' | 'apple') => {
+    setError('');
+    setLoading(true);
+    try {
+      if (provider === 'google') {
+        await signInWithGoogle();
+      } else {
+        await signInWithApple();
+      }
+      // Success will trigger redirect via AuthContext
+    } catch (err: any) {
+      console.error(err.code, err.message);
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+        setError(`Failed to sign in with ${provider}. Please try again.`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center items-center p-4">
@@ -88,6 +108,39 @@ const LoginPage: React.FC = () => {
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full flex items-center justify-center"
+                onClick={() => handleSocialLogin('google')}
+                disabled={loading}
+              >
+                <GoogleIcon className="h-5 w-5 mr-2" />
+                Continue with Google
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full flex items-center justify-center"
+                onClick={() => handleSocialLogin('apple')}
+                disabled={loading}
+              >
+                <AppleIcon className="h-5 w-5 mr-2" />
+                Continue with Apple
+              </Button>
+            </div>
           <div className="text-center mt-6">
               <p className="text-sm text-gray-600 dark:text-gray-400">
                   Don't have an account?{' '}
