@@ -40,6 +40,30 @@ const createListener = <T>(q: any, onUpdate: (data: T[]) => void): (() => void) 
     return unsubscribe;
 };
 
+// FIX: Added a specialized listener for User objects to handle the id -> uid mapping.
+const createUserListener = (q: any, onUpdate: (data: User[]) => void): (() => void) => {
+    if (!db) {
+        onUpdate([]);
+        return () => {};
+    }
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => {
+            const model = docToModel(doc);
+            if (model) {
+                // This is the localized fix: map 'id' to 'uid' for user objects.
+                model.uid = model.id;
+                delete model.id;
+            }
+            return model as User;
+        });
+        onUpdate(data.filter(Boolean)); // Filter out any null models
+    }, (error) => {
+        console.error("Error listening to user collection:", error);
+        onUpdate([]);
+    });
+    return unsubscribe;
+};
+
 
 // --- API Functions ---
 
@@ -72,12 +96,12 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
 // USERS
 export const listenToAllAffiliates = (onUpdate: (users: User[]) => void): (() => void) => {
     const q = query(collection(db, 'users'), where('role', '==', 'Affiliate'), orderBy('createdAt', 'desc'));
-    return createListener<User>(q, onUpdate);
+    return createUserListener(q, onUpdate);
 };
 
 export const listenToPendingOnboardingRequests = (onUpdate: (users: User[]) => void): (() => void) => {
     const q = query(collection(db, 'users'), where('role', '==', 'Affiliate'), where('onboardingStatus', '==', 'pendingAdminAuthorization'), orderBy('createdAt', 'asc'));
-    return createListener<User>(q, onUpdate);
+    return createUserListener(q, onUpdate);
 };
 
 export const updateUserOnboardingStatus = async (userId: string, status: User['onboardingStatus']): Promise<void> => {
