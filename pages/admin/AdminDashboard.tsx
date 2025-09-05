@@ -62,7 +62,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="flex h-screen bg-light-mint-green dark:bg-gray-900 text-dark-charcoal-gray dark:text-gray-100">
       {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
         <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">

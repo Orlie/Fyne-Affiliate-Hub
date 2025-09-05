@@ -24,7 +24,7 @@ const AppRoutes: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="flex items-center justify-center h-screen bg-light-mint-green dark:bg-gray-900">
         <div className="w-16 h-16 border-4 border-primary-500 border-dashed rounded-full animate-spin"></div>
       </div>
     );

@@ -91,7 +91,7 @@ const TasksPage: React.FC = () => {
                                         className="w-24 h-24 rounded-lg object-cover flex-shrink-0" 
                                     />
                                     <div className="flex-1">
-                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-soft-peach text-red-800">
                                             Approved
                                         </span>
                                         <h3 className="font-bold text-gray-900 dark:text-white line-clamp-2 mt-1">{task.campaign?.name}</h3>

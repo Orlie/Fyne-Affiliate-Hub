@@ -147,6 +147,51 @@ export const resolvePasswordResetRequest = async (requestId: string, userEmail: 
 
 // CAMPAIGNS
 
+/**
+ * Parses a single line of a CSV file, respecting quotes and escaped quotes.
+ * @param line The string for a single CSV row.
+ * @returns An array of strings representing the columns.
+ */
+const parseCsvLine = (line: string): string[] => {
+    const result: string[] = [];
+    let currentField = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (inQuotes) {
+            if (char === '"') {
+                if (i + 1 < line.length && line[i + 1] === '"') {
+                    // This is an escaped quote
+                    currentField += '"';
+                    i++; // Skip the second quote
+                } else {
+                    // This is the closing quote for the field
+                    inQuotes = false;
+                }
+            } else {
+                currentField += char;
+            }
+        } else {
+            if (char === '"') {
+                // This is the opening quote for the field.
+                inQuotes = true;
+            } else if (char === ',') {
+                // End of a field
+                result.push(currentField);
+                currentField = '';
+            } else {
+                // Regular character
+                currentField += char;
+            }
+        }
+    }
+    // Add the last field
+    result.push(currentField);
+    return result;
+};
+
+
 const processCampaignCsv = async (csvText: string): Promise<{success: boolean, message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
 
@@ -156,7 +201,7 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
             return { success: false, message: "CSV is empty or contains only a header." };
         }
 
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const headers = parseCsvLine(lines[0]).map(h => h.trim());
         const requiredHeaders = ['id', 'name', 'category', 'active'];
         for (const rh of requiredHeaders) {
             if (!headers.includes(rh)) {
@@ -165,10 +210,10 @@ const processCampaignCsv = async (csvText: string): Promise<{success: boolean, m
         }
         
         const campaignsToSync = lines.slice(1).map(line => {
-            const values = line.split(',');
+            const values = parseCsvLine(line);
             const campaignObj: {[key: string]: string} = {};
             headers.forEach((header, index) => {
-                campaignObj[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
+                campaignObj[header] = values[index] ? values[index].trim() : '';
             });
             return campaignObj;
         });

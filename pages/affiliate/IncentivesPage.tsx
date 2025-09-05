@@ -58,7 +58,7 @@ const IncentivesPage: React.FC = () => {
                     <Card key={campaign.id}>
                         <CardContent>
                             <div className="flex justify-between items-center">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${campaign.type === 'GMV Tiers' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}`}>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${campaign.type === 'GMV Tiers' ? 'bg-soft-peach text-red-800' : 'bg-soft-pink text-pink-800'}`}>
                                     {campaign.type}
                                 </span>
                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

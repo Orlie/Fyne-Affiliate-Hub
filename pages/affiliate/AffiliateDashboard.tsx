@@ -44,7 +44,7 @@ const AffiliateDashboard: React.FC = () => {
     }
 
     return (
-        <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-black font-sans">
+        <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-light-mint-green dark:bg-black font-sans">
             <header className="p-4 bg-white dark:bg-gray-900/50 sticky top-0 z-10 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                   Welcome, {user?.displayName?.split(' ')[0] || 'Creator'}!
