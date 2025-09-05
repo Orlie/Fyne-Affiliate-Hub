@@ -111,20 +111,26 @@ const CampaignDetailPage: React.FC = () => {
         window.open(campaign.shareLink, '_blank');
 
         try {
-            // Case 1: A request already exists and it's pending showcase confirmation
-            if (request && request.status === 'PendingShowcase') {
-                await affiliateConfirmsShowcase(request.id);
-                // UI will update via listener, moving status to 'PendingOrder'
-            } 
-            // Case 2 (THE FIX): No request exists AND video approval is NOT required
-            else if (!request && !settings?.requireVideoApproval) {
-                const result = await createDirectSampleRequest(user.uid, campaign.id);
-                if (result.success) {
-                    setShowcaseSuccess("Confirmed! Admin has been notified to order your sample.");
+            // Approval OFF Flow: Handle both creating a new request or advancing an existing one.
+            if (!settings?.requireVideoApproval) {
+                if (request) {
+                    // An optional request was already made ('PendingApproval'). Just advance it.
+                    await affiliateConfirmsShowcase(request.id);
+                    setShowcaseSuccess("Confirmed! Your request is ready for admin to order.");
                 } else {
-                    // This might happen if there's a race condition or they already requested
-                    setShowcaseError(result.message);
+                    // No request was made yet. Create a direct one.
+                    const result = await createDirectSampleRequest(user.uid, campaign.id);
+                    if (result.success) {
+                        setShowcaseSuccess("Confirmed! Admin has been notified to order your sample.");
+                    } else {
+                        setShowcaseError(result.message);
+                    }
                 }
+            } 
+            // Approval ON Flow (the original logic for 'PendingShowcase' status)
+            else if (request && request.status === 'PendingShowcase') {
+                await affiliateConfirmsShowcase(request.id);
+                // No success message needed here, the status tracker is enough.
             }
         } catch (error) {
             console.error("Failed to confirm showcase add:", error);
