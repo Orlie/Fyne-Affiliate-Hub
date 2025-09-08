@@ -160,7 +160,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     await setDoc(userDocRef, userProfileData);
 
-    // FIX: Removed the getDoc check. The onAuthStateChanged listener is now robust enough to handle the document's appearance, making this check redundant and a potential part of the race condition.
+    // FIX: Manually set the user state immediately after creating the profile
+    // to prevent a race condition with the onAuthStateChanged listener.
+    // The listener will still run but will find the document exists and harmlessly set the same state.
+    const newUser: AppUser = {
+        uid: firebaseUser.uid,
+        email: userProfileData.email,
+        displayName: userProfileData.displayName,
+        username: userProfileData.username,
+        tiktokUsername: userProfileData.tiktokUsername,
+        discordUsername: userProfileData.discordUsername,
+        role: userProfileData.role,
+        status: userProfileData.status,
+        createdAt: userProfileData.createdAt.toDate(), // Convert timestamp to Date
+        onboardingStatus: userProfileData.onboardingStatus,
+    };
+    setUser(newUser);
   };
   
   const changePassword = async (newPassword: string) => {
