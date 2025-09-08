@@ -13,6 +13,7 @@ import IncentivesPage from './IncentivesPage';
 import ProfilePage from './ProfilePage';
 import TicketsPage from './TicketsPage';
 import MyRequestsPage from './MyRequestsPage';
+import CommunityOnboardingGate from '../../components/affiliate/CommunityOnboardingGate';
 
 type AffiliateTab = '' | 'campaigns' | 'profile';
 
@@ -26,6 +27,10 @@ const AffiliateDashboard: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+
+    if (user?.onboardingStatus === 'needsToJoinCommunity') {
+        return <CommunityOnboardingGate />;
+    }
     
     // Determine active tab from URL path
     const currentPath = location.pathname.split('/')[1] || '';

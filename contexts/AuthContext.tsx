@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   role: 'Affiliate' as const,
                   status: 'Verified' as const,
                   createdAt: Timestamp.now(),
-                  onboardingStatus: 'needsToShowcase' as const,
+                  onboardingStatus: 'needsToJoinCommunity' as const,
               };
               await setDoc(userDocRef, userProfileData);
               userDoc = await getDoc(userDocRef); // Re-fetch the doc to continue
@@ -155,7 +155,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         role: 'Affiliate' as const,
         status: 'Verified' as const,
         createdAt: Timestamp.now(),
-        onboardingStatus: 'needsToShowcase' as const,
+        onboardingStatus: 'needsToJoinCommunity' as const,
     };
 
     await setDoc(userDocRef, userProfileData);

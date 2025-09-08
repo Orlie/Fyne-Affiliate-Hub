@@ -16,7 +16,7 @@ export interface User {
   cumulativeGMV?: number;
   approvedVideoCount?: number;
   createdAt?: Date;
-  onboardingStatus?: 'needsToShowcase' | 'pendingAdminAuthorization' | 'pendingAffiliateAcceptance' | 'completed';
+  onboardingStatus?: 'needsToJoinCommunity' | 'needsToShowcase' | 'pendingAdminAuthorization' | 'pendingAffiliateAcceptance' | 'completed';
 }
 
 export type SampleRequestStatus = 'PendingApproval' | 'PendingShowcase' | 'PendingOrder' | 'Shipped' | 'Rejected';

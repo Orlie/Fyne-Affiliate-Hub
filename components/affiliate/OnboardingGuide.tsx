@@ -11,7 +11,7 @@ const OnboardingGuide: React.FC = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
 
-    if (!user || !user.onboardingStatus || user.onboardingStatus === 'completed') {
+    if (!user || !user.onboardingStatus || user.onboardingStatus === 'completed' || user.onboardingStatus === 'needsToJoinCommunity') {
         return null;
     }
 
