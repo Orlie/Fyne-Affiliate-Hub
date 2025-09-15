@@ -1,6 +1,6 @@
 
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ClipboardCheckIcon, TagIcon, UserCircleIcon } from '../../components/icons/Icons';
@@ -14,6 +14,7 @@ import ProfilePage from './ProfilePage';
 import TicketsPage from './TicketsPage';
 import MyRequestsPage from './MyRequestsPage';
 import CommunityOnboardingGate from '../../components/affiliate/CommunityOnboardingGate';
+import WeeklySurveyModal from '../../components/affiliate/WeeklySurveyModal';
 
 type AffiliateTab = '' | 'campaigns' | 'profile';
 
@@ -27,6 +28,7 @@ const AffiliateDashboard: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+    const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
 
     if (user?.onboardingStatus === 'needsToJoinCommunity') {
         return <CommunityOnboardingGate />;
@@ -48,8 +50,17 @@ const AffiliateDashboard: React.FC = () => {
         }
     }
 
+    const triggerSurvey = () => {
+        const lastSubmission = user?.lastSurveySubmittedAt;
+        if (!lastSubmission || (new Date().getTime() - lastSubmission.getTime()) > 7 * 24 * 60 * 60 * 1000) {
+            setIsSurveyModalOpen(true);
+        }
+    };
+
     return (
         <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-light-mint-green dark:bg-black font-sans">
+            {isSurveyModalOpen && <WeeklySurveyModal onClose={() => setIsSurveyModalOpen(false)} />}
+            
             <header className="p-4 bg-white dark:bg-gray-900/50 sticky top-0 z-10 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                   Welcome, {user?.displayName?.split(' ')[0] || 'Creator'}!
@@ -60,7 +71,7 @@ const AffiliateDashboard: React.FC = () => {
                 <Routes>
                     <Route path="/" element={<TasksPage />} />
                     <Route path="/campaigns" element={<CampaignsPage />} />
-                    <Route path="/campaign/:campaignId" element={<CampaignDetailPage />} />
+                    <Route path="/campaign/:campaignId" element={<CampaignDetailPage onActionSuccess={triggerSurvey} />} />
                     <Route path="/leaderboard" element={<LeaderboardPage />} />
                     <Route path="/resources" element={<ResourcesPage />} />
                     <Route path="/incentives" element={<IncentivesPage />} />

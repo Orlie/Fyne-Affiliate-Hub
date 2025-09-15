@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Campaign, SampleRequest } from '../../types';
@@ -5,6 +6,9 @@ import { Campaign, SampleRequest } from '../../types';
 import { listenToCampaigns, listenToSampleRequestsForAffiliate } from '../../services/mockApi';
 import { useAuth } from '../../contexts/AuthContext';
 import Card, { CardContent } from '../../components/ui/Card';
+import Pagination from '../../components/ui/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 const CampaignsPage: React.FC = () => {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -14,6 +18,7 @@ const CampaignsPage: React.FC = () => {
 
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'commission_high' | 'commission_low'>('newest');
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         if (!user) return;
@@ -38,6 +43,7 @@ const CampaignsPage: React.FC = () => {
     const categories = useMemo(() => ['All', ...new Set(campaigns.map(c => c.category))], [campaigns]);
 
     const sortedAndFilteredCampaigns = useMemo(() => {
+        setCurrentPage(1); // Reset page when filters change
         return campaigns
             .filter(c => selectedCategory === 'All' || c.category === selectedCategory)
             .sort((a, b) => {
@@ -57,6 +63,11 @@ const CampaignsPage: React.FC = () => {
                 }
             });
     }, [campaigns, sortOrder, selectedCategory]);
+    
+    const paginatedCampaigns = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return sortedAndFilteredCampaigns.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [sortedAndFilteredCampaigns, currentPage]);
 
 
     const getRequestStatusForCampaign = (campaignId: string) => {
@@ -68,6 +79,9 @@ const CampaignsPage: React.FC = () => {
     return (
         <div className="p-4 space-y-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Partner Campaigns</h2>
+            <p className="text-xs text-center p-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300">
+                💡 Remember to post one Fyne video weekly to stay eligible for new samples!
+            </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
@@ -88,7 +102,7 @@ const CampaignsPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-            {sortedAndFilteredCampaigns.map(campaign => {
+            {paginatedCampaigns.map(campaign => {
                 const request = getRequestStatusForCampaign(campaign.id);
                 
                 return (
@@ -116,6 +130,12 @@ const CampaignsPage: React.FC = () => {
                 )
             })}
             </div>
+            <Pagination
+                currentPage={currentPage}
+                totalItems={sortedAndFilteredCampaigns.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+            />
         </div>
     );
 };

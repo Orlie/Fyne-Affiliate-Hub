@@ -1,6 +1,8 @@
+
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
-    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings
+    IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings,
+    SurveySubmission, SurveyChoice, Sentiment, SurveyStatus, AdminTask, AdminTaskStatus, DrawWinner
 } from '../types';
 import { db } from '../firebase';
 // FIX: Updated the `firebase/firestore` import to use the `@firebase/firestore` scope for consistency.
@@ -110,6 +112,12 @@ export const updateUserOnboardingStatus = async (userId: string, status: User['o
     await updateDoc(userDoc, { onboardingStatus: status });
 };
 
+export const updateUserProfileFields = async (userId: string, fields: Partial<User>): Promise<void> => {
+    if (!db) return;
+    const userDoc = doc(db, 'users', userId);
+    await updateDoc(userDoc, fields);
+};
+
 export const updateAffiliateStatus = async (userId: string, newStatus: 'Verified' | 'Banned'): Promise<void> => {
     if (!db) return;
     const userDoc = doc(db, 'users', userId);
@@ -123,7 +131,12 @@ const getUserByEmail = async (email: string): Promise<User | null> => {
     if (snapshot.empty) {
         return null;
     }
-    return docToModel(snapshot.docs[0]) as User;
+    const model = docToModel(snapshot.docs[0]);
+    if (model) {
+        model.uid = model.id;
+        delete model.id;
+    }
+    return model as User;
 }
 
 export const resetUserPasswordAdmin = async (userId: string): Promise<void> => {
@@ -642,4 +655,96 @@ export const addMessageToTicket = async (ticketId: string, message: { sender: 'A
 export const updateTicketStatus = async (ticketId: string, status: TicketStatus): Promise<void> => {
     if (!db) return;
     await updateDoc(doc(db, 'tickets', ticketId), { status });
+};
+
+// --- Community Engagement API ---
+
+const analyzeSentiment = (text: string): Sentiment => {
+    const positiveKeywords = ['love', 'great', 'amazing', 'excellent', 'helpful', 'easy', 'more', 'better'];
+    const negativeKeywords = ['hate', 'bad', 'terrible', 'confusing', 'hard', 'issue', 'problem', 'difficult', 'less'];
+    const lowerText = text.toLowerCase();
+    let score = 0;
+    positiveKeywords.forEach(kw => { if (lowerText.includes(kw)) score++; });
+    negativeKeywords.forEach(kw => { if (lowerText.includes(kw)) score--; });
+    if (score > 0) return 'Positive';
+    if (score < 0) return 'Negative';
+    return 'Neutral';
+};
+
+export const submitSurvey = async (data: { affiliateId: string; affiliateTiktok: string, choice: SurveyChoice; otherText?: string }): Promise<void> => {
+    if (!db) return;
+    const submissionData = {
+        ...data,
+        sentiment: data.otherText ? analyzeSentiment(data.otherText) : 'N/A' as const,
+        status: 'New' as const,
+        createdAt: serverTimestamp(),
+    };
+    // Add submission to its own collection
+    await addDoc(collection(db, 'surveySubmissions'), submissionData);
+    // Update the user's profile to prevent re-prompting for a week
+    const userDocRef = doc(db, 'users', data.affiliateId);
+    await updateDoc(userDocRef, { lastSurveySubmittedAt: serverTimestamp() });
+};
+
+export const listenToSurveySubmissions = (onUpdate: (submissions: SurveySubmission[]) => void): (() => void) => {
+    const q = query(collection(db, 'surveySubmissions'), orderBy('createdAt', 'desc'));
+    return createListener<SurveySubmission>(q, onUpdate);
+};
+
+export const markSurveyAsActioned = async (submission: SurveySubmission): Promise<void> => {
+    if (!db) return;
+    const submissionDocRef = doc(db, 'surveySubmissions', submission.id);
+    await updateDoc(submissionDocRef, { status: 'Actioned' });
+    
+    // Auto-generate a "thank you" ticket
+    await createTicket({
+        affiliateId: submission.affiliateId,
+        subject: `Regarding your recent feedback`,
+        message: `Hi ${submission.affiliateTiktok},\n\nThank you for your valuable feedback: "${submission.choice}". We have reviewed your suggestion and our team will look into it. We appreciate you helping us improve the Fyne Creator Hub!\n\nBest,\nThe Fyne Team`,
+    });
+};
+
+export const listenToAdminTasks = (onUpdate: (tasks: AdminTask[]) => void): (() => void) => {
+    const q = query(collection(db, 'adminTasks'), orderBy('createdAt', 'desc'));
+    return createListener<AdminTask>(q, onUpdate);
+};
+
+export const createAdminTask = async (title: string, linkedFeedbackId: string): Promise<void> => {
+    if (!db) return;
+    await addDoc(collection(db, 'adminTasks'), {
+        title,
+        linkedFeedbackId,
+        status: 'To Do' as const,
+        createdAt: serverTimestamp(),
+    });
+};
+
+export const updateAdminTaskStatus = async (taskId: string, status: AdminTaskStatus): Promise<void> => {
+    if (!db) return;
+    await updateDoc(doc(db, 'adminTasks', taskId), { status });
+};
+
+export const runWeeklyDraw = async (): Promise<DrawWinner | null> => {
+    if (!db) return null;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const q = query(collection(db, 'surveySubmissions'), where('createdAt', '>=', Timestamp.fromDate(sevenDaysAgo)));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    const eligibleParticipants = snapshot.docs.map(d => docToModel(d) as SurveySubmission);
+    const winner = eligibleParticipants[Math.floor(Math.random() * eligibleParticipants.length)];
+
+    const winnerData: Omit<DrawWinner, 'id'> = {
+        affiliateId: winner.affiliateId,
+        affiliateTiktok: winner.affiliateTiktok,
+        weekOf: new Date(),
+    };
+    await addDoc(collection(db, 'drawWinners'), winnerData);
+    return winnerData as DrawWinner;
+};
+
+export const listenToWeeklyDrawWinners = (onUpdate: (winners: DrawWinner[]) => void): (() => void) => {
+    const q = query(collection(db, 'drawWinners'), orderBy('weekOf', 'desc'));
+    return createListener<DrawWinner>(q, onUpdate);
 };

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Campaign, SampleRequest, SampleRequestStatus, GlobalSettings } from '../../types';
@@ -18,8 +19,11 @@ const STATUS_MAP: Record<SampleRequestStatus, { step: number; label: string }> =
 };
 const STATUS_STEPS = ['Request Submitted', 'Admin Approved', 'Added to Showcase', 'Sample Shipped'];
 
+interface CampaignDetailPageProps {
+    onActionSuccess: () => void;
+}
 
-const CampaignDetailPage: React.FC = () => {
+const CampaignDetailPage: React.FC<CampaignDetailPageProps> = ({ onActionSuccess }) => {
     const { campaignId } = useParams<{ campaignId: string }>();
     const { user } = useAuth();
 
@@ -94,6 +98,7 @@ const CampaignDetailPage: React.FC = () => {
             // Request state will update via listener
             setFyneVideoUrl('');
             setAdCode('');
+            onActionSuccess(); // Trigger survey check
         } else {
             setError(result.message);
         }
@@ -111,17 +116,20 @@ const CampaignDetailPage: React.FC = () => {
         window.open(campaign.shareLink, '_blank');
 
         try {
+            let success = false;
             // Approval OFF Flow: Handle both creating a new request or advancing an existing one.
             if (!settings?.requireVideoApproval) {
                 if (request) {
                     // An optional request was already made ('PendingApproval'). Just advance it.
                     await affiliateConfirmsShowcase(request.id);
                     setShowcaseSuccess("Confirmed! Your request is ready for admin to order.");
+                    success = true;
                 } else {
                     // No request was made yet. Create a direct one.
                     const result = await createDirectSampleRequest(user.uid, campaign.id);
                     if (result.success) {
                         setShowcaseSuccess("Confirmed! Admin has been notified to order your sample.");
+                        success = true;
                     } else {
                         setShowcaseError(result.message);
                     }
@@ -130,7 +138,11 @@ const CampaignDetailPage: React.FC = () => {
             // Approval ON Flow (the original logic for 'PendingShowcase' status)
             else if (request && request.status === 'PendingShowcase') {
                 await affiliateConfirmsShowcase(request.id);
+                success = true;
                 // No success message needed here, the status tracker is enough.
+            }
+            if (success) {
+                onActionSuccess(); // Trigger survey check
             }
         } catch (error) {
             console.error("Failed to confirm showcase add:", error);
@@ -217,15 +229,18 @@ const CampaignDetailPage: React.FC = () => {
                     <Card>
                         <CardContent>
                              <h2 className="text-lg font-bold">
-                                {requireApproval ? "1. Request a Sample" : "Submit a Video (Optional)"}
+                                {requireApproval ? "1. Request a Sample" : "1. Submit a Fyne Skincare Video (Optional but Encouraged)"}
                             </h2>
                             {!request ? (
                                 <>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                        {requireApproval 
-                                            ? "Submit a new Fyne Skincare video to request a free sample of this product."
-                                            : "You can submit videos to be featured, but it's not required to get your share link."
-                                        }
+                                    {requireApproval 
+                                        ? "Submit a new video of a Fyne Skincare Microneedling bundle (1, 2, or 3-month) to request a free sample of this product."
+                                        : "To request this sample, you can optionally submit a recent video you've made about one of our core Fyne Skincare products (e.g., the 1, 2, or 3-month Microneedling bundles)."
+                                    }
+                                    </p>
+                                    <p className="text-xs text-primary-700 dark:text-primary-300 mt-2 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                                       Please note: To remain eligible for future free samples, we encourage creating at least one Fyne Skincare video per week.
                                     </p>
                                     <form onSubmit={handleRequestSubmit} className="mt-6 space-y-4">
                                         <Input label="Fyne Video URL" placeholder="https://tiktok.com/video/..." value={fyneVideoUrl} onChange={e => setFyneVideoUrl(e.target.value)} required data-testid="fyne-video-url-input" />

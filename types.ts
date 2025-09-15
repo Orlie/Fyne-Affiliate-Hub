@@ -1,5 +1,4 @@
 
-
 export type UserRole = 'Admin' | 'Affiliate';
 export type Theme = 'light' | 'dark';
 
@@ -17,6 +16,8 @@ export interface User {
   approvedVideoCount?: number;
   createdAt?: Date;
   onboardingStatus?: 'needsToJoinCommunity' | 'needsToShowcase' | 'pendingAdminAuthorization' | 'pendingAffiliateAcceptance' | 'completed';
+  lastSurveySubmittedAt?: Date;
+  lastReminderDismissedAt?: Date;
 }
 
 export type SampleRequestStatus = 'PendingApproval' | 'PendingShowcase' | 'PendingOrder' | 'Shipped' | 'Rejected';
@@ -117,4 +118,38 @@ export interface PasswordResetRequest {
 
 export interface GlobalSettings {
   requireVideoApproval: boolean;
+}
+
+// --- New Types for Community Engagement ---
+
+export type SurveyChoice = 'More Earnings & Opportunities' | 'Sales Growth Guides' | 'Creator Skills Training' | 'Product Support' | 'Admin Support' | 'Other';
+export type Sentiment = 'Positive' | 'Neutral' | 'Negative' | 'N/A';
+export type SurveyStatus = 'New' | 'Actioned';
+
+export interface SurveySubmission {
+    id: string;
+    affiliateId: string;
+    affiliateTiktok: string;
+    choice: SurveyChoice;
+    otherText?: string;
+    sentiment: Sentiment;
+    status: SurveyStatus;
+    createdAt: Date;
+}
+
+export type AdminTaskStatus = 'To Do' | 'In Progress' | 'Done';
+
+export interface AdminTask {
+    id: string;
+    title: string;
+    status: AdminTaskStatus;
+    linkedFeedbackId: string;
+    createdAt: Date;
+}
+
+export interface DrawWinner {
+    id: string;
+    affiliateId: string;
+    affiliateTiktok: string;
+    weekOf: Date;
 }

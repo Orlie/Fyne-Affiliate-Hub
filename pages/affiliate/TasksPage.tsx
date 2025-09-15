@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Campaign, SampleRequest } from '../../types';
 import { listenToSampleRequestsForAffiliate, fetchCampaignById, affiliateConfirmsShowcase, listenToCampaigns } from '../../services/mockApi';
@@ -6,6 +7,7 @@ import Card, { CardContent } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { CheckCircleIcon } from '../../components/icons/Icons';
 import OnboardingGuide from '../../components/affiliate/OnboardingGuide';
+import WeeklyReminderCard from '../../components/affiliate/WeeklyReminderCard';
 
 interface Task extends SampleRequest {
     campaign?: Campaign;
@@ -72,7 +74,7 @@ const TasksPage: React.FC = () => {
 
     return (
         <div className="p-4 space-y-4">
-            <OnboardingGuide />
+            {showOnboarding ? <OnboardingGuide /> : <WeeklyReminderCard />}
 
             {!showOnboarding && (
               <>

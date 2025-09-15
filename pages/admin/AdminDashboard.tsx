@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Button from '../../components/ui/Button';
-import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon, KeyIcon, Cog6ToothIcon, ClipboardCheckIcon } from '../../components/icons/Icons';
+import { SunIcon, MoonIcon, LogoutIcon, DocumentTextIcon, ChartBarIcon, StarIcon, SparklesIcon, TagIcon, TrophyIcon, BookOpenIcon, TicketIcon, UsersIcon, KeyIcon, Cog6ToothIcon, ClipboardCheckIcon, DocumentMagnifyingGlassIcon } from '../../components/icons/Icons';
 import SampleRequestQueue from './SampleRequestQueue';
 import AiChatbotManager from './AiChatbotManager';
 import CampaignsManager from './CampaignsManager';
@@ -16,11 +16,13 @@ import AffiliatesManager from './AffiliatesManager';
 import PasswordResetManager from './PasswordResetManager';
 import SettingsManager from './SettingsManager';
 import OnboardingManager from './OnboardingManager';
+import FeedbackManager from './FeedbackManager';
+import ActionItemsManager from './ActionItemsManager';
 import { listenToPasswordResetRequests, listenToPendingOnboardingRequests } from '../../services/mockApi';
 import { User, PasswordResetRequest } from '../../types';
 
 
-type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets' | 'hub-settings' | 'onboarding';
+type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets' | 'hub-settings' | 'onboarding' | 'feedback' | 'action-items';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -47,6 +49,12 @@ const AdminDashboard: React.FC = () => {
         return <SampleRequestQueue />;
       case 'campaigns':
         return <CampaignsManager />;
+      case 'affiliates':
+        return <AffiliatesManager />;
+      case 'feedback':
+        return <FeedbackManager />;
+      case 'action-items':
+        return <ActionItemsManager />;
       case 'leaderboard':
         return <LeaderboardManager />;
       case 'resources':
@@ -55,14 +63,12 @@ const AdminDashboard: React.FC = () => {
         return <TicketsManager />;
       case 'incentives':
         return <IncentivesManager />;
-      case 'affiliates':
-        return <AffiliatesManager />;
-      case 'ai-chatbot':
-        return <AiChatbotManager />;
       case 'password-resets':
         return <PasswordResetManager requests={resetRequests} />;
        case 'hub-settings':
         return <SettingsManager />;
+       case 'ai-chatbot':
+        return <AiChatbotManager />;
        case 'analytics':
         return <div className="p-8 text-gray-800 dark:text-gray-200">Analytics & Reporting (Coming Soon)</div>;
       default:
@@ -83,6 +89,8 @@ const AdminDashboard: React.FC = () => {
           <AdminNavLink text="Sample Requests" icon={DocumentTextIcon} active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
           <AdminNavLink text="Campaigns" icon={TagIcon} active={activeTab === 'campaigns'} onClick={() => setActiveTab('campaigns')} />
           <AdminNavLink text="Affiliates" icon={UsersIcon} active={activeTab === 'affiliates'} onClick={() => setActiveTab('affiliates')} />
+          <AdminNavLink text="Affiliate Feedback" icon={DocumentMagnifyingGlassIcon} active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />
+          <AdminNavLink text="Action Items" icon={ClipboardCheckIcon} active={activeTab === 'action-items'} onClick={() => setActiveTab('action-items')} />
           <AdminNavLink text="Leaderboard" icon={TrophyIcon} active={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')} />
           <AdminNavLink text="Resources" icon={BookOpenIcon} active={activeTab === 'resources'} onClick={() => setActiveTab('resources')} />
           <AdminNavLink text="Tickets" icon={TicketIcon} active={activeTab === 'tickets'} onClick={() => setActiveTab('tickets')} />
