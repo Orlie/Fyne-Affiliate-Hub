@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -18,6 +16,7 @@ import SettingsManager from './SettingsManager';
 import OnboardingManager from './OnboardingManager';
 import FeedbackManager from './FeedbackManager';
 import ActionItemsManager from './ActionItemsManager';
+import AnalyticsManager from './AnalyticsManager'; // Import the new manager
 import { listenToPasswordResetRequests, listenToPendingOnboardingRequests } from '../../services/mockApi';
 import { User, PasswordResetRequest } from '../../types';
 
@@ -70,7 +69,7 @@ const AdminDashboard: React.FC = () => {
        case 'ai-chatbot':
         return <AiChatbotManager />;
        case 'analytics':
-        return <div className="p-8 text-gray-800 dark:text-gray-200">Analytics & Reporting (Coming Soon)</div>;
+        return <AnalyticsManager />; // Replace placeholder with the new component
       default:
         // FIX: Added missing 'requests' prop to OnboardingManager to resolve TypeScript error.
         return <OnboardingManager requests={onboardingRequests} />;
@@ -86,6 +85,7 @@ const AdminDashboard: React.FC = () => {
         </div>
         <nav className="flex-1 px-4 py-6 space-y-2">
           <AdminNavLink text="Onboarding" icon={ClipboardCheckIcon} active={activeTab === 'onboarding'} onClick={() => setActiveTab('onboarding')} badge={onboardingRequests.length > 0 ? onboardingRequests.length : undefined} />
+          <AdminNavLink text="Analytics" icon={ChartBarIcon} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
           <AdminNavLink text="Sample Requests" icon={DocumentTextIcon} active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
           <AdminNavLink text="Campaigns" icon={TagIcon} active={activeTab === 'campaigns'} onClick={() => setActiveTab('campaigns')} />
           <AdminNavLink text="Affiliates" icon={UsersIcon} active={activeTab === 'affiliates'} onClick={() => setActiveTab('affiliates')} />
@@ -98,7 +98,6 @@ const AdminDashboard: React.FC = () => {
           <AdminNavLink text="Password Resets" icon={KeyIcon} active={activeTab === 'password-resets'} onClick={() => setActiveTab('password-resets')} badge={resetRequests.length > 0 ? resetRequests.length : undefined} />
           <AdminNavLink text="Hub Settings" icon={Cog6ToothIcon} active={activeTab === 'hub-settings'} onClick={() => setActiveTab('hub-settings')} />
           <AdminNavLink text="AI Chatbot" icon={SparklesIcon} active={activeTab === 'ai-chatbot'} onClick={() => setActiveTab('ai-chatbot')} />
-          <AdminNavLink text="Analytics" icon={ChartBarIcon} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
         </nav>
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-center">{user?.email}</p>
