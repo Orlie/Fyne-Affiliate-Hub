@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User as AppUser } from '../types';
 import { auth, db } from '../firebase';
@@ -69,9 +70,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           if (userDoc.exists()) {
             const data = userDoc.data();
-            // Convert Firestore Timestamp to JS Date
+            // Convert Firestore Timestamps to JS Dates
             if (data && data.createdAt && data.createdAt instanceof Timestamp) {
                 data.createdAt = data.createdAt.toDate();
+            }
+            if (data && data.feedbackRequest && data.feedbackRequest.requestedAt instanceof Timestamp) {
+                data.feedbackRequest.requestedAt = data.feedbackRequest.requestedAt.toDate();
+            }
+            if (data && data.feedbackRequest && data.feedbackRequest.expiresAt instanceof Timestamp) {
+                data.feedbackRequest.expiresAt = data.feedbackRequest.expiresAt.toDate();
             }
             setUser({ uid: firebaseUser.uid, ...data } as AppUser);
           }
@@ -106,6 +113,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
            // Keep local user state in sync with database
            if (data && data.createdAt && data.createdAt instanceof Timestamp) {
                 data.createdAt = data.createdAt.toDate();
+            }
+            if (data && data.feedbackRequest && data.feedbackRequest.requestedAt instanceof Timestamp) {
+                data.feedbackRequest.requestedAt = data.feedbackRequest.requestedAt.toDate();
+            }
+            if (data && data.feedbackRequest && data.feedbackRequest.expiresAt instanceof Timestamp) {
+                data.feedbackRequest.expiresAt = data.feedbackRequest.expiresAt.toDate();
             }
            setUser({ uid: user.uid, ...data } as AppUser);
         } else {
