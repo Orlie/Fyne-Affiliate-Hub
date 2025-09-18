@@ -2,7 +2,8 @@
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings,
-    SurveySubmission, SurveyChoice, Sentiment, SurveyStatus, AdminTask, AdminTaskStatus, DrawWinner
+    SurveySubmission, SurveyChoice, Sentiment, SurveyStatus, AdminTask, AdminTaskStatus, DrawWinner,
+    ContentReward, ContentSubmission
 } from '../types';
 import { db } from '../firebase';
 // FIX: Updated the `firebase/firestore` import to use the `@firebase/firestore` scope for consistency.
@@ -613,7 +614,8 @@ export const createTicket = async (data: { affiliateId: string; subject: string;
             messages: [{
                 sender: 'Affiliate' as const,
                 text: data.message,
-                timestamp: Timestamp.now()
+                // FIX: Replaced Firestore Timestamp.now() with new Date() to match the 'Date' type in TicketMessage.
+                timestamp: new Date()
             }]
         };
         await addDoc(collection(db, 'tickets'), newTicket);
@@ -638,7 +640,8 @@ export const addMessageToTicket = async (ticketId: string, message: { sender: 'A
         if (!ticketData) throw "Ticket data missing";
 
         const messages = ticketData.messages || [];
-        const newMessage = { ...message, timestamp: Timestamp.now() };
+        // FIX: Replaced Firestore Timestamp.now() with new Date() to match the 'Date' type in TicketMessage.
+        const newMessage = { ...message, timestamp: new Date() };
         messages.push(newMessage);
         
         let newStatus = ticketData.status;
@@ -707,13 +710,15 @@ export const submitSurvey = async (data: { affiliateId: string; affiliateTiktok:
     const userDocRef = doc(db, 'users', data.affiliateId);
     if (isManualRequestResponse) {
         // If it's a response to a manual request, clear the request field and update submission time
+        // FIX: Replaced serverTimestamp() with new Date() to match the 'Date' type for 'lastSurveySubmittedAt' in the User interface and resolve the type error.
         await updateDoc(userDocRef, { 
-            lastSurveySubmittedAt: serverTimestamp(),
+            lastSurveySubmittedAt: new Date(),
             feedbackRequest: deleteField() 
         });
     } else {
         // Otherwise, just update the submission time for the weekly survey
-        await updateDoc(userDocRef, { lastSurveySubmittedAt: serverTimestamp() });
+        // FIX: Replaced serverTimestamp() with new Date() to match the 'Date' type for 'lastSurveySubmittedAt' in the User interface and resolve the type error.
+        await updateDoc(userDocRef, { lastSurveySubmittedAt: new Date() });
     }
 };
 
@@ -778,4 +783,135 @@ export const runWeeklyDraw = async (): Promise<DrawWinner | null> => {
 export const listenToWeeklyDrawWinners = (onUpdate: (winners: DrawWinner[]) => void): (() => void) => {
     const q = query(collection(db, 'drawWinners'), orderBy('weekOf', 'desc'));
     return createListener<DrawWinner>(q, onUpdate);
+};
+
+// --- CONTENT REWARDS API ---
+
+export const listenToContentRewards = (onUpdate: (rewards: ContentReward[]) => void): (() => void) => {
+    const q = query(collection(db, 'contentRewards'), orderBy('createdAt', 'desc'));
+    return createListener<ContentReward>(q, onUpdate);
+};
+
+export const fetchContentRewardById = async (id: string): Promise<ContentReward | null> => {
+    if (!db) return null;
+    const docRef = doc(db, 'contentRewards', id);
+    const docSnap = await getDoc(docRef);
+    return docToModel(docSnap) as ContentReward | null;
+};
+
+export const createContentReward = async (reward: Omit<ContentReward, 'id' | 'createdAt' | 'paidOut'>): Promise<void> => {
+    if (!db) return;
+    const data = { 
+        ...reward, 
+        paidOut: 0,
+        createdAt: serverTimestamp(),
+    };
+    await addDoc(collection(db, 'contentRewards'), data);
+};
+
+export const updateContentReward = async (reward: Partial<ContentReward> & { id: string }): Promise<void> => {
+    if (!db) return;
+    const { id, ...data } = reward;
+    const rewardDoc = doc(db, 'contentRewards', id);
+    await updateDoc(rewardDoc, data as any);
+};
+
+export const submitContentForReward = async (submission: Omit<ContentSubmission, 'id' | 'submittedAt' | 'status'>): Promise<{success: boolean, message: string}> => {
+    if (!db) return { success: false, message: 'Database not connected.' };
+    try {
+        const data = {
+            ...submission,
+            status: 'pending_review' as const,
+            submittedAt: serverTimestamp(),
+        };
+        await addDoc(collection(db, 'contentSubmissions'), data);
+        return { success: true, message: 'Your submission has been received!' };
+    } catch (error: any) {
+        console.error("Error submitting content:", error);
+        return { success: false, message: 'There was an error submitting your content.' };
+    }
+};
+
+export const listenToSubmissionsForReward = (rewardId: string, onUpdate: (submissions: ContentSubmission[]) => void): (() => void) => {
+    const q = query(collection(db, 'contentSubmissions'), where('rewardId', '==', rewardId), orderBy('submittedAt', 'desc'));
+    return createListener<ContentSubmission>(q, onUpdate);
+};
+
+export const listenToSubmissionsForAffiliate = (affiliateId: string, onUpdate: (submissions: ContentSubmission[]) => void): (() => void) => {
+    const q = query(collection(db, 'contentSubmissions'), where('affiliateId', '==', affiliateId), orderBy('submittedAt', 'desc'));
+    return createListener<ContentSubmission>(q, onUpdate);
+};
+
+export const reviewSubmission = async (
+    submissionId: string, 
+    decision: 'approved' | 'rejected', 
+    details: { trackedViews?: number; rejectionReason?: string }
+): Promise<void> => {
+    if (!db) return;
+
+    await runTransaction(db, async (transaction) => {
+        const submissionRef = doc(db, 'contentSubmissions', submissionId);
+        const submissionDoc = await transaction.get(submissionRef);
+
+        if (!submissionDoc.exists()) {
+            throw new Error("Submission does not exist!");
+        }
+
+        const submission = submissionDoc.data() as ContentSubmission;
+        if (submission.status !== 'pending_review') {
+            // Already reviewed, do nothing.
+            return;
+        }
+
+        const rewardRef = doc(db, 'contentRewards', submission.rewardId);
+        const rewardDoc = await transaction.get(rewardRef);
+
+        if (!rewardDoc.exists()) {
+            throw new Error("Content Reward program does not exist!");
+        }
+
+        const reward = {id: rewardDoc.id, ...rewardDoc.data()} as ContentReward;
+        
+        const updateData: Partial<ContentSubmission> = {
+            status: decision,
+            // FIX: Replaced Firestore Timestamp.now() with new Date() to match the 'Date' type in ContentSubmission.
+            reviewedAt: new Date(),
+        };
+
+        if (decision === 'approved') {
+            const views = details.trackedViews || 0;
+            updateData.trackedViews = views;
+            
+            let payout = 0;
+            const unit = reward.rewardUnit || "per 1000 views";
+            if (unit.includes("per 1000 views")) {
+                let rate = reward.rewardValue;
+                if (reward.tieredRewards && reward.tieredRewards.length > 0) {
+                    const applicableTier = [...reward.tieredRewards]
+                        .sort((a, b) => b.views - a.views)
+                        .find(tier => views >= tier.views);
+                    if (applicableTier) {
+                        rate = applicableTier.rewardValue;
+                    }
+                }
+                payout = (views / 1000) * rate;
+            } else {
+                payout = reward.rewardValue;
+            }
+
+            updateData.payoutAmount = payout;
+
+            const newPaidOut = reward.paidOut + payout;
+            const rewardUpdate: Partial<ContentReward> = { paidOut: newPaidOut };
+            if (newPaidOut >= reward.totalBudget) {
+                rewardUpdate.status = 'completed';
+            }
+            transaction.update(rewardRef, rewardUpdate);
+
+        } else { // Rejected
+            updateData.rejectionReason = details.rejectionReason || 'No reason provided.';
+        }
+        
+        transaction.update(submissionRef, updateData);
+    });
 };

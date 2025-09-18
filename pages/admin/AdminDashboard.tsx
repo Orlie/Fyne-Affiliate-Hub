@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -16,12 +17,13 @@ import SettingsManager from './SettingsManager';
 import OnboardingManager from './OnboardingManager';
 import FeedbackManager from './FeedbackManager';
 import ActionItemsManager from './ActionItemsManager';
-import AnalyticsManager from './AnalyticsManager'; // Import the new manager
+import AnalyticsManager from './AnalyticsManager';
+import ContentRewardsManager from './ContentRewardsManager';
 import { listenToPasswordResetRequests, listenToPendingOnboardingRequests } from '../../services/mockApi';
 import { User, PasswordResetRequest } from '../../types';
 
 
-type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets' | 'hub-settings' | 'onboarding' | 'feedback' | 'action-items';
+type AdminTab = 'requests' | 'campaigns' | 'leaderboard' | 'resources' | 'tickets' | 'incentives' | 'affiliates' | 'ai-chatbot' | 'analytics' | 'password-resets' | 'hub-settings' | 'onboarding' | 'feedback' | 'action-items' | 'content-rewards';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -48,6 +50,8 @@ const AdminDashboard: React.FC = () => {
         return <SampleRequestQueue />;
       case 'campaigns':
         return <CampaignsManager />;
+      case 'content-rewards':
+        return <ContentRewardsManager />;
       case 'affiliates':
         return <AffiliatesManager />;
       case 'feedback':
@@ -83,11 +87,12 @@ const AdminDashboard: React.FC = () => {
         <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
           <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">Admin Hub</h1>
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           <AdminNavLink text="Onboarding" icon={ClipboardCheckIcon} active={activeTab === 'onboarding'} onClick={() => setActiveTab('onboarding')} badge={onboardingRequests.length > 0 ? onboardingRequests.length : undefined} />
           <AdminNavLink text="Analytics" icon={ChartBarIcon} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
           <AdminNavLink text="Sample Requests" icon={DocumentTextIcon} active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
           <AdminNavLink text="Campaigns" icon={TagIcon} active={activeTab === 'campaigns'} onClick={() => setActiveTab('campaigns')} />
+          <AdminNavLink text="Content Rewards" icon={TrophyIcon} active={activeTab === 'content-rewards'} onClick={() => setActiveTab('content-rewards')} />
           <AdminNavLink text="Affiliates" icon={UsersIcon} active={activeTab === 'affiliates'} onClick={() => setActiveTab('affiliates')} />
           <AdminNavLink text="Affiliate Feedback" icon={DocumentMagnifyingGlassIcon} active={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />
           <AdminNavLink text="Action Items" icon={ClipboardCheckIcon} active={activeTab === 'action-items'} onClick={() => setActiveTab('action-items')} />

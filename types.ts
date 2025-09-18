@@ -1,5 +1,4 @@
 
-
 export type UserRole = 'Admin' | 'Affiliate';
 export type Theme = 'light' | 'dark';
 
@@ -158,4 +157,43 @@ export interface DrawWinner {
     affiliateId: string;
     affiliateTiktok: string;
     weekOf: Date;
+}
+
+// --- New Types for Content Rewards ---
+
+export interface ContentRewardTier {
+  views: number;
+  rewardValue: number;
+}
+
+export interface ContentReward {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  rewardValue: number;
+  rewardUnit: string; // e.g., "per 1000 views", "per approved video"
+  totalBudget: number;
+  paidOut: number;
+  status: 'active' | 'paused' | 'completed';
+  requirements: string[];
+  assets: { name: string; url: string; }[];
+  platforms: ('tiktok' | 'instagram' | 'youtube')[];
+  leaderboardEnabled: boolean;
+  tieredRewards?: ContentRewardTier[];
+  createdAt: Date;
+}
+
+export interface ContentSubmission {
+  id: string;
+  rewardId: string;
+  affiliateId: string;
+  affiliateTiktok: string;
+  videoUrl: string;
+  status: 'pending_review' | 'approved' | 'rejected';
+  submittedAt: Date;
+  reviewedAt?: Date;
+  rejectionReason?: string;
+  trackedViews?: number;
+  payoutAmount?: number;
 }
