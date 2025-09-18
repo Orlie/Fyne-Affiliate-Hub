@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Campaign, SampleRequest } from '../../types';
 import { listenToSampleRequestsForAffiliate, fetchCampaignById, affiliateConfirmsShowcase, listenToCampaigns } from '../../services/mockApi';
@@ -49,7 +47,7 @@ const TasksPage: React.FC = () => {
                 ...req,
                 campaign: campaigns.get(req.campaignId),
             }))
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
     }, [allRequests, campaigns]);
     
     const feedbackRequestTask = useMemo(() => {
@@ -101,7 +99,7 @@ const TasksPage: React.FC = () => {
                     <CardContent>
                         <h2 className="text-sm font-bold uppercase text-primary-600 dark:text-primary-400 tracking-wider">Feedback Requested</h2>
                         <p className="text-gray-800 dark:text-gray-200 mt-2">{feedbackRequestTask.prompt}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">This request expires on {feedbackRequestTask.expiresAt.toLocaleDateString()}.</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">This request expires on {new Date(feedbackRequestTask.expiresAt).toLocaleDateString()}.</p>
                         <Button className="w-full mt-4" onClick={() => setIsSurveyModalOpen(true)}>Share Your Feedback</Button>
                     </CardContent>
                 </Card>

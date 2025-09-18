@@ -21,7 +21,6 @@ const AffiliatesManager: React.FC = () => {
   const [feedbackPrompt, setFeedbackPrompt] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  // FIX: Use a ref to set the indeterminate property on the header checkbox, which is not directly supported by React's JSX types.
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -68,7 +67,7 @@ const AffiliatesManager: React.FC = () => {
       switch (segment) {
           case 'new':
               segmentUids = affiliates
-                  .filter(a => a.createdAt && a.createdAt > thirtyDaysAgo)
+                  .filter(a => a.createdAt && new Date(a.createdAt) > thirtyDaysAgo)
                   .map(a => a.uid);
               break;
           case 'top':
