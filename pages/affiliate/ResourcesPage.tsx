@@ -1,9 +1,8 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { ResourceArticle } from '../../types';
 import { listenToResources } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
+import RichTextRenderer from '../../components/ui/RichTextRenderer';
 
 type ResourceCategory = 'Daily Content Briefs' | 'Viral Video Scripts' | 'Follower Growth Guides';
 
@@ -52,7 +51,7 @@ const ResourcesPage: React.FC = () => {
                         <Card key={article.id}>
                             <CardContent>
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">{article.title}</h3>
-                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{article.content}</p>
+                                <RichTextRenderer content={article.content} className="mt-2" />
                             </CardContent>
                         </Card>
                     )) : <p className="text-center text-gray-500">No resources found in this category.</p>
