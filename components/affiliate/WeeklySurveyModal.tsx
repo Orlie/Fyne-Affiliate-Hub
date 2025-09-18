@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { submitSurvey } from '../../services/mockApi';
@@ -9,6 +10,8 @@ import Textarea from '../ui/Textarea';
 
 interface WeeklySurveyModalProps {
     onClose: () => void;
+    customPrompt?: string;
+    isManualRequest?: boolean;
 }
 
 const SURVEY_OPTIONS: { id: SurveyChoice, label: string, emoji: string }[] = [
@@ -20,7 +23,7 @@ const SURVEY_OPTIONS: { id: SurveyChoice, label: string, emoji: string }[] = [
     { id: 'Other', label: 'Other', emoji: '💡' },
 ];
 
-const WeeklySurveyModal: React.FC<WeeklySurveyModalProps> = ({ onClose }) => {
+const WeeklySurveyModal: React.FC<WeeklySurveyModalProps> = ({ onClose, customPrompt, isManualRequest = false }) => {
     const { user } = useAuth();
     const [selectedChoice, setSelectedChoice] = useState<SurveyChoice | null>(null);
     const [otherText, setOtherText] = useState('');
@@ -36,7 +39,7 @@ const WeeklySurveyModal: React.FC<WeeklySurveyModalProps> = ({ onClose }) => {
                 affiliateTiktok: user.tiktokUsername || '@unknown',
                 choice: selectedChoice,
                 otherText: selectedChoice === 'Other' ? otherText : '',
-            });
+            }, isManualRequest);
             setIsSubmitted(true);
         } catch (error) {
             console.error('Failed to submit survey:', error);
@@ -53,19 +56,28 @@ const WeeklySurveyModal: React.FC<WeeklySurveyModalProps> = ({ onClose }) => {
                     {isSubmitted ? (
                         <div className="text-center p-4">
                             <h2 className="text-2xl font-bold text-primary-600 dark:text-primary-400">Thank You!</h2>
-                            <p className="mt-2 text-gray-600 dark:text-gray-400">Your feedback has been received, and you've been entered into this week's draw. Good luck!</p>
+                            <p className="mt-2 text-gray-600 dark:text-gray-400">
+                                {isManualRequest
+                                  ? "Your feedback has been sent to our team. We appreciate your input!"
+                                  : "Your feedback has been received, and you've been entered into this week's draw. Good luck!"
+                                }
+                            </p>
                             <Button onClick={onClose} className="mt-6 w-full">Close</Button>
                         </div>
                     ) : (
                         <>
-                            <div className="text-center p-2 rounded-lg bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800">
-                                <h3 className="font-bold text-primary-800 dark:text-primary-200">🌟 Weekly Feedback Draw! 🌟</h3>
-                                <p className="text-xs text-primary-700 dark:text-primary-300 mt-1">
-                                    Complete this 1-minute survey and get an entry into our weekly draw for a $10 gift card!
-                                </p>
-                            </div>
+                            {!isManualRequest && (
+                                <div className="text-center p-2 rounded-lg bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800">
+                                    <h3 className="font-bold text-primary-800 dark:text-primary-200">🌟 Weekly Feedback Draw! 🌟</h3>
+                                    <p className="text-xs text-primary-700 dark:text-primary-300 mt-1">
+                                        Complete this 1-minute survey and get an entry into our weekly draw for a $10 gift card!
+                                    </p>
+                                </div>
+                            )}
 
-                            <h2 className="text-lg font-bold text-center mt-4">How can we improve your experience?</h2>
+                            <h2 className="text-lg font-bold text-center mt-4">
+                                {customPrompt || 'How can we improve your experience?'}
+                            </h2>
                             <div className="mt-4 space-y-3">
                                 {SURVEY_OPTIONS.map(option => (
                                     <button

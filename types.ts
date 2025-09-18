@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'Admin' | 'Affiliate';
 export type Theme = 'light' | 'dark';
 
@@ -18,6 +19,11 @@ export interface User {
   onboardingStatus?: 'needsToJoinCommunity' | 'needsToShowcase' | 'pendingAdminAuthorization' | 'pendingAffiliateAcceptance' | 'completed';
   lastSurveySubmittedAt?: Date;
   lastReminderDismissedAt?: Date;
+  feedbackRequest?: {
+    prompt: string;
+    requestedAt: Date;
+    expiresAt: Date;
+  };
 }
 
 export type SampleRequestStatus = 'PendingApproval' | 'PendingShowcase' | 'PendingOrder' | 'Shipped' | 'Rejected';

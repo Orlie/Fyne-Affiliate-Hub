@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Campaign, SampleRequest } from '../../types';
 import { listenToSampleRequestsForAffiliate, fetchCampaignById, affiliateConfirmsShowcase, listenToCampaigns } from '../../services/mockApi';
@@ -8,6 +9,7 @@ import Button from '../../components/ui/Button';
 import { CheckCircleIcon } from '../../components/icons/Icons';
 import OnboardingGuide from '../../components/affiliate/OnboardingGuide';
 import WeeklyReminderCard from '../../components/affiliate/WeeklyReminderCard';
+import WeeklySurveyModal from '../../components/affiliate/WeeklySurveyModal';
 
 interface Task extends SampleRequest {
     campaign?: Campaign;
@@ -19,6 +21,7 @@ const TasksPage: React.FC = () => {
     const [campaigns, setCampaigns] = useState<Map<string, Campaign>>(new Map());
     const [loading, setLoading] = useState(true);
     const [confirming, setConfirming] = useState<string | null>(null);
+    const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -48,6 +51,17 @@ const TasksPage: React.FC = () => {
             }))
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }, [allRequests, campaigns]);
+    
+    const feedbackRequestTask = useMemo(() => {
+        if (user?.feedbackRequest) {
+            const expiresAt = user.feedbackRequest.expiresAt;
+            // The listener updates user, so we check against a new Date object.
+            if (new Date() < new Date(expiresAt)) {
+                return user.feedbackRequest;
+            }
+        }
+        return null;
+    }, [user]);
 
 
     const handleConfirmShowcase = async (task: Task) => {
@@ -74,6 +88,25 @@ const TasksPage: React.FC = () => {
 
     return (
         <div className="p-4 space-y-4">
+            {isSurveyModalOpen && feedbackRequestTask && (
+                <WeeklySurveyModal
+                    onClose={() => setIsSurveyModalOpen(false)}
+                    customPrompt={feedbackRequestTask.prompt}
+                    isManualRequest={true}
+                />
+            )}
+            
+            {feedbackRequestTask && (
+                 <Card className="border-2 border-primary-500 animate-pulse-slow">
+                    <CardContent>
+                        <h2 className="text-sm font-bold uppercase text-primary-600 dark:text-primary-400 tracking-wider">Feedback Requested</h2>
+                        <p className="text-gray-800 dark:text-gray-200 mt-2">{feedbackRequestTask.prompt}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">This request expires on {feedbackRequestTask.expiresAt.toLocaleDateString()}.</p>
+                        <Button className="w-full mt-4" onClick={() => setIsSurveyModalOpen(true)}>Share Your Feedback</Button>
+                    </CardContent>
+                </Card>
+            )}
+
             {showOnboarding ? <OnboardingGuide /> : <WeeklyReminderCard />}
 
             {!showOnboarding && (

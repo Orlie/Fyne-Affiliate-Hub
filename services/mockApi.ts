@@ -8,7 +8,7 @@ import { db } from '../firebase';
 // FIX: Updated the `firebase/firestore` import to use the `@firebase/firestore` scope for consistency.
 import { 
     collection, query, where, orderBy, getDocs, doc, getDoc, addDoc, updateDoc, 
-    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot, setDoc, limit
+    deleteDoc, runTransaction, serverTimestamp, increment, Timestamp, DocumentSnapshot, writeBatch, onSnapshot, setDoc, limit, deleteField
 } from '@firebase/firestore';
 
 
@@ -671,7 +671,28 @@ const analyzeSentiment = (text: string): Sentiment => {
     return 'Neutral';
 };
 
-export const submitSurvey = async (data: { affiliateId: string; affiliateTiktok: string, choice: SurveyChoice; otherText?: string }): Promise<void> => {
+export const requestFeedbackFromAffiliates = async (userIds: string[], prompt: string): Promise<void> => {
+    if (!db || userIds.length === 0) return;
+    const batch = writeBatch(db);
+    const requestedAt = new Date();
+    const expiresAt = new Date();
+    expiresAt.setDate(requestedAt.getDate() + 14);
+
+    const feedbackRequestData = {
+        prompt,
+        requestedAt: Timestamp.fromDate(requestedAt),
+        expiresAt: Timestamp.fromDate(expiresAt),
+    };
+
+    userIds.forEach(userId => {
+        const userDocRef = doc(db, 'users', userId);
+        batch.update(userDocRef, { feedbackRequest: feedbackRequestData });
+    });
+
+    await batch.commit();
+};
+
+export const submitSurvey = async (data: { affiliateId: string; affiliateTiktok: string, choice: SurveyChoice; otherText?: string }, isManualRequestResponse?: boolean): Promise<void> => {
     if (!db) return;
     const submissionData = {
         ...data,
@@ -681,9 +702,19 @@ export const submitSurvey = async (data: { affiliateId: string; affiliateTiktok:
     };
     // Add submission to its own collection
     await addDoc(collection(db, 'surveySubmissions'), submissionData);
-    // Update the user's profile to prevent re-prompting for a week
+    
+    // Update the user's profile
     const userDocRef = doc(db, 'users', data.affiliateId);
-    await updateDoc(userDocRef, { lastSurveySubmittedAt: serverTimestamp() });
+    if (isManualRequestResponse) {
+        // If it's a response to a manual request, clear the request field and update submission time
+        await updateDoc(userDocRef, { 
+            lastSurveySubmittedAt: serverTimestamp(),
+            feedbackRequest: deleteField() 
+        });
+    } else {
+        // Otherwise, just update the submission time for the weekly survey
+        await updateDoc(userDocRef, { lastSurveySubmittedAt: serverTimestamp() });
+    }
 };
 
 export const listenToSurveySubmissions = (onUpdate: (submissions: SurveySubmission[]) => void): (() => void) => {
