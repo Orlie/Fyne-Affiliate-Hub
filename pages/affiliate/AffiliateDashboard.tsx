@@ -1,6 +1,6 @@
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ClipboardCheckIcon, TagIcon, UserCircleIcon, TrophyIcon } from '../../components/icons/Icons';
@@ -17,6 +17,7 @@ import ContentRewardsPage from './ContentRewardsPage';
 import ContentRewardDetailPage from './ContentRewardDetailPage';
 import CommunityOnboardingGate from '../../components/affiliate/CommunityOnboardingGate';
 import WeeklySurveyModal from '../../components/affiliate/WeeklySurveyModal';
+import { listenToSubmissionsForAffiliate } from '../../services/mockApi';
 
 type AffiliateTab = '' | 'campaigns' | 'rewards' | 'profile';
 
@@ -32,6 +33,17 @@ const AffiliateDashboard: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
+    const [rewardNotificationCount, setRewardNotificationCount] = useState(0);
+
+    useEffect(() => {
+        if (user) {
+            const unsub = listenToSubmissionsForAffiliate(user.uid, (submissions) => {
+                const unreadCount = submissions.filter(s => !s.isViewedByAffiliate).length;
+                setRewardNotificationCount(unreadCount);
+            });
+            return () => unsub();
+        }
+    }, [user]);
 
     if (user?.onboardingStatus === 'needsToJoinCommunity') {
         return <CommunityOnboardingGate />;
@@ -93,10 +105,15 @@ const AffiliateDashboard: React.FC = () => {
                         key={tab.id}
                         data-testid={`nav-${tab.id || 'tasks'}`}
                         onClick={() => navigate(`/${tab.id}`)}
-                        className={`flex flex-col items-center justify-center w-full pt-2 pb-1 text-xs font-medium transition-colors duration-200 ${
+                        className={`relative flex flex-col items-center justify-center w-full pt-2 pb-1 text-xs font-medium transition-colors duration-200 ${
                             activeTabId === tab.id ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400'
                         }`}
                     >
+                        {tab.id === 'rewards' && rewardNotificationCount > 0 && (
+                            <span className="absolute top-1 right-[25%] h-4 w-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
+                                {rewardNotificationCount}
+                            </span>
+                        )}
                         <tab.icon className="h-6 w-6 mb-1" />
                         <span>{tab.label}</span>
                     </button>

@@ -1,4 +1,3 @@
-
 export type UserRole = 'Admin' | 'Affiliate';
 export type Theme = 'light' | 'dark';
 
@@ -184,16 +183,21 @@ export interface ContentReward {
   createdAt: Date;
 }
 
+export type ContentSubmissionStatus = 'pending_review' | 'approved' | 'rejected' | 'resubmitted';
+
 export interface ContentSubmission {
   id: string;
   rewardId: string;
   affiliateId: string;
   affiliateTiktok: string;
   videoUrl: string;
-  status: 'pending_review' | 'approved' | 'rejected';
+  adCode: string;
+  status: ContentSubmissionStatus;
   submittedAt: Date;
   reviewedAt?: Date;
   rejectionReason?: string;
   trackedViews?: number;
   payoutAmount?: number;
+  isViewedByAffiliate: boolean;
+  originalSubmissionId?: string;
 }

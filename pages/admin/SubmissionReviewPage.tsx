@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ContentReward, ContentSubmission } from '../../types';
 import { listenToSubmissionsForReward, reviewSubmission } from '../../services/mockApi';
@@ -68,6 +67,7 @@ const SubmissionReviewPage: React.FC<SubmissionReviewPageProps> = ({ reward, onB
                                     <tr>
                                         <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Affiliate</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Video Link</th>
+                                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Ad Code</th>
                                         <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Submitted At</th>
                                         <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right font-semibold">Actions</th>
                                     </tr>
@@ -77,6 +77,7 @@ const SubmissionReviewPage: React.FC<SubmissionReviewPageProps> = ({ reward, onB
                                         <tr key={sub.id}>
                                             <td className="py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">{sub.affiliateTiktok}</td>
                                             <td className="px-3 py-4 text-sm"><a href={sub.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline">View Video</a></td>
+                                            <td className="px-3 py-4 text-sm font-mono text-gray-500 dark:text-gray-400">{sub.adCode}</td>
                                             <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{sub.submittedAt.toLocaleString()}</td>
                                             <td className="relative py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                                                 <Button size="sm" onClick={() => setReviewing(sub)}>Review</Button>
@@ -95,7 +96,8 @@ const SubmissionReviewPage: React.FC<SubmissionReviewPageProps> = ({ reward, onB
                     <Card className="w-full max-w-lg">
                         <CardContent>
                             <h2 className="text-xl font-bold">Reviewing from {reviewing.affiliateTiktok}</h2>
-                            <a href={reviewing.videoUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-500 hover:underline break-all">{reviewing.videoUrl}</a>
+                            <p className="text-sm"><strong>Video:</strong> <a href={reviewing.videoUrl} target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:underline break-all">{reviewing.videoUrl}</a></p>
+                            <p className="text-sm"><strong>Ad Code:</strong> <span className="font-mono">{reviewing.adCode}</span></p>
                             
                             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <h3 className="font-semibold text-green-600">Approve Submission</h3>

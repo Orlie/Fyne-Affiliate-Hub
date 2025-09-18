@@ -1,4 +1,3 @@
-
 import { 
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings,
@@ -816,13 +815,14 @@ export const updateContentReward = async (reward: Partial<ContentReward> & { id:
     await updateDoc(rewardDoc, data as any);
 };
 
-export const submitContentForReward = async (submission: Omit<ContentSubmission, 'id' | 'submittedAt' | 'status'>): Promise<{success: boolean, message: string}> => {
+export const submitContentForReward = async (submission: Omit<ContentSubmission, 'id' | 'submittedAt' | 'status' | 'isViewedByAffiliate' | 'reviewedAt' | 'rejectionReason' | 'payoutAmount' | 'trackedViews' | 'originalSubmissionId'>): Promise<{success: boolean, message: string}> => {
     if (!db) return { success: false, message: 'Database not connected.' };
     try {
         const data = {
             ...submission,
             status: 'pending_review' as const,
             submittedAt: serverTimestamp(),
+            isViewedByAffiliate: true, // The user is viewing it by submitting it
         };
         await addDoc(collection(db, 'contentSubmissions'), data);
         return { success: true, message: 'Your submission has been received!' };
@@ -832,6 +832,33 @@ export const submitContentForReward = async (submission: Omit<ContentSubmission,
     }
 };
 
+export const resubmitContentForReward = async (originalSubmission: ContentSubmission, newData: { videoUrl: string, adCode: string }): Promise<void> => {
+    if (!db) return;
+
+    const batch = writeBatch(db);
+
+    const newSubmissionData = {
+        rewardId: originalSubmission.rewardId,
+        affiliateId: originalSubmission.affiliateId,
+        affiliateTiktok: originalSubmission.affiliateTiktok,
+        videoUrl: newData.videoUrl,
+        adCode: newData.adCode,
+        status: 'pending_review' as const,
+        submittedAt: serverTimestamp(),
+        isViewedByAffiliate: true,
+        originalSubmissionId: originalSubmission.id
+    };
+    
+    const newSubRef = doc(collection(db, 'contentSubmissions'));
+    batch.set(newSubRef, newSubmissionData);
+
+    const oldSubRef = doc(db, 'contentSubmissions', originalSubmission.id);
+    batch.update(oldSubRef, { status: 'resubmitted' });
+
+    await batch.commit();
+};
+
+
 export const listenToSubmissionsForReward = (rewardId: string, onUpdate: (submissions: ContentSubmission[]) => void): (() => void) => {
     const q = query(collection(db, 'contentSubmissions'), where('rewardId', '==', rewardId), orderBy('submittedAt', 'desc'));
     return createListener<ContentSubmission>(q, onUpdate);
@@ -840,6 +867,16 @@ export const listenToSubmissionsForReward = (rewardId: string, onUpdate: (submis
 export const listenToSubmissionsForAffiliate = (affiliateId: string, onUpdate: (submissions: ContentSubmission[]) => void): (() => void) => {
     const q = query(collection(db, 'contentSubmissions'), where('affiliateId', '==', affiliateId), orderBy('submittedAt', 'desc'));
     return createListener<ContentSubmission>(q, onUpdate);
+};
+
+export const markSubmissionsAsViewed = async (submissionIds: string[]): Promise<void> => {
+    if (!db || submissionIds.length === 0) return;
+    const batch = writeBatch(db);
+    submissionIds.forEach(id => {
+        const subRef = doc(db, 'contentSubmissions', id);
+        batch.update(subRef, { isViewedByAffiliate: true });
+    });
+    await batch.commit();
 };
 
 export const reviewSubmission = async (
@@ -874,8 +911,8 @@ export const reviewSubmission = async (
         
         const updateData: Partial<ContentSubmission> = {
             status: decision,
-            // FIX: Replaced Firestore Timestamp.now() with new Date() to match the 'Date' type in ContentSubmission.
             reviewedAt: new Date(),
+            isViewedByAffiliate: false, // Set to false so affiliate gets a notification
         };
 
         if (decision === 'approved') {
