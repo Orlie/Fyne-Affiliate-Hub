@@ -14,7 +14,7 @@ import {
   OAuthProvider,
   signInWithPopup
 } from '@firebase/auth';
-import { doc, getDoc, setDoc, Timestamp, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, onSnapshot, query, collection, where, limit, getDocs, deleteDoc } from 'firebase/firestore';
 
 
 interface AuthContextType {
@@ -42,15 +42,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           let userDoc = await getDoc(userDocRef);
 
-          // FIX: This block now checks the provider to avoid a race condition with the register function.
-          // It will only auto-create a profile for social media sign-ups.
           if (!userDoc.exists()) {
             const isPasswordProvider = firebaseUser.providerData.some(
               (provider) => provider.providerId === 'password'
             );
 
             if (!isPasswordProvider) {
-              // User signed up with a social provider for the first time
               console.log("Creating new user profile for social login:", firebaseUser.uid);
               const userProfileData = {
                   email: firebaseUser.email,
@@ -59,20 +56,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   tiktokUsername: '',
                   discordUsername: '',
                   role: 'Affiliate' as const,
-                  status: 'Verified' as const,
+                  status: 'Applied' as const, // Social signups are now 'Applied' for review
+                  partnerTier: 'Standard' as const,
                   createdAt: Timestamp.now(),
                   onboardingStatus: 'needsToJoinCommunity' as const,
               };
               await setDoc(userDocRef, userProfileData);
-              userDoc = await getDoc(userDocRef); // Re-fetch the doc to continue
+              userDoc = await getDoc(userDocRef);
             }
           }
 
           if (userDoc.exists()) {
             const data = userDoc.data();
-            // Convert Firestore Timestamps to JS Dates
             if (data && data.createdAt && data.createdAt instanceof Timestamp) {
                 data.createdAt = data.createdAt.toDate();
+            }
+             if (data && data.lastContacted && data.lastContacted instanceof Timestamp) {
+                data.lastContacted = data.lastContacted.toDate();
             }
             if (data && data.feedbackRequest && data.feedbackRequest.requestedAt instanceof Timestamp) {
                 data.feedbackRequest.requestedAt = data.feedbackRequest.requestedAt.toDate();
@@ -82,8 +82,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             setUser({ uid: firebaseUser.uid, ...data } as AppUser);
           }
-          // FIX: Removed the aggressive 'else' block that was signing out new email users during the registration race condition.
-
         } catch (error: any) {
            console.error(`Error fetching user profile: ${error.code} - ${error.message}`);
            setUser(null);
@@ -97,22 +95,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // Real-time listener for user status changes (e.g., being banned)
   useEffect(() => {
     if (user) {
       const userDocRef = doc(db, 'users', user.uid);
       const unsubscribe = onSnapshot(userDocRef, (doc) => {
         if (doc.exists()) {
-          // FIX: Removed incorrect type assertion `as AppUser` from `doc.data()` to resolve type error. The `data` from Firestore should be treated as `DocumentData` before converting its `Timestamp` fields to `Date` objects and casting to the final `AppUser` type.
           const data = doc.data();
-          // If user status is updated to 'Banned', log them out
-          if (data.status === 'Banned') {
-            console.warn("User has been banned. Signing out.");
+          if (data.status === 'Inactive' || data.status === 'Rejected' || data.status === 'Banned') { // Extended logout conditions
+            console.warn(`User status is ${data.status}. Signing out.`);
             signOut(auth);
           }
-           // Keep local user state in sync with database
            if (data && data.createdAt && data.createdAt instanceof Timestamp) {
                 data.createdAt = data.createdAt.toDate();
+            }
+             if (data && data.lastContacted && data.lastContacted instanceof Timestamp) {
+                data.lastContacted = data.lastContacted.toDate();
             }
             if (data && data.feedbackRequest && data.feedbackRequest.requestedAt instanceof Timestamp) {
                 data.feedbackRequest.requestedAt = data.feedbackRequest.requestedAt.toDate();
@@ -122,7 +119,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
            setUser({ uid: user.uid, ...data } as AppUser);
         } else {
-            // Document deleted, log user out
             signOut(auth);
         }
       });
@@ -151,42 +147,47 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const register = async (details: { displayName: string; username: string; email: string; tiktokUsername: string; discordUsername: string; }, password: string) => {
+    // 1. Check if a prospect/pitched user already exists with this email
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', details.email), limit(1));
+    const existingUserSnapshot = await getDocs(q);
+    const existingUserData = !existingUserSnapshot.empty ? { id: existingUserSnapshot.docs[0].id, ...existingUserSnapshot.docs[0].data() } : null;
+
     const userCredential = await createUserWithEmailAndPassword(auth, details.email, password);
     const firebaseUser = userCredential.user;
-
-    if (!firebaseUser) {
-        throw new Error("Failed to create user account.");
-    }
-
-    const userDocRef = doc(db, 'users', firebaseUser.uid);
-    const userProfileData = {
+    if (!firebaseUser) throw new Error("Failed to create user account.");
+    
+    // 2. Prepare the new user profile
+    let userProfileData = {
         email: details.email,
         displayName: details.displayName,
         username: details.username,
         tiktokUsername: details.tiktokUsername,
         discordUsername: details.discordUsername,
         role: 'Affiliate' as const,
-        status: 'Verified' as const,
+        status: 'Applied' as const, // New registrations are 'Applied' for admin review
+        partnerTier: 'Standard' as const,
         createdAt: Timestamp.now(),
         onboardingStatus: 'needsToJoinCommunity' as const,
+        adminNotes: '',
     };
-
+    
+    // 3. If it was a pitched creator, merge their old notes
+    if (existingUserData && (existingUserData.status === 'Pitched' || existingUserData.status === 'Prospect')) {
+        console.log('Found existing prospect, converting to applicant...');
+        userProfileData.adminNotes = existingUserData.adminNotes || `Converted from prospect on ${new Date().toLocaleDateString()}`;
+        // Delete the old prospect document after creating the new one
+        await deleteDoc(doc(db, 'users', existingUserData.id));
+    }
+    
+    // 4. Create the definitive user document with the auth UID
+    const userDocRef = doc(db, 'users', firebaseUser.uid);
     await setDoc(userDocRef, userProfileData);
 
-    // FIX: Manually set the user state immediately after creating the profile
-    // to prevent a race condition with the onAuthStateChanged listener.
-    // The listener will still run but will find the document exists and harmlessly set the same state.
     const newUser: AppUser = {
         uid: firebaseUser.uid,
-        email: userProfileData.email,
-        displayName: userProfileData.displayName,
-        username: userProfileData.username,
-        tiktokUsername: userProfileData.tiktokUsername,
-        discordUsername: userProfileData.discordUsername,
-        role: userProfileData.role,
-        status: userProfileData.status,
-        createdAt: userProfileData.createdAt.toDate(), // Convert timestamp to Date
-        onboardingStatus: userProfileData.onboardingStatus,
+        ...userProfileData,
+        createdAt: userProfileData.createdAt.toDate(),
     };
     setUser(newUser);
   };

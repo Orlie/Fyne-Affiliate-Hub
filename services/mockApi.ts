@@ -2,7 +2,7 @@ import {
     User, Campaign, SampleRequest, SampleRequestStatus, Leaderboard, ResourceArticle, 
     IncentiveCampaign, Ticket, TicketStatus, LeaderboardEntry, PasswordResetRequest, GlobalSettings,
     SurveySubmission, SurveyChoice, Sentiment, SurveyStatus, AdminTask, AdminTaskStatus, DrawWinner,
-    ContentReward, ContentSubmission
+    ContentReward, ContentSubmission, UserStatus
 } from '../types';
 import { db } from '../firebase';
 // FIX: Updated the `firebase/firestore` import to use the `@firebase/firestore` scope for consistency.
@@ -96,9 +96,21 @@ export const updateGlobalSettings = async (settings: Partial<GlobalSettings>): P
 };
 
 // USERS
-export const listenToAllAffiliates = (onUpdate: (users: User[]) => void): (() => void) => {
-    const q = query(collection(db, 'users'), where('role', '==', 'Affiliate'), orderBy('createdAt', 'desc'));
+export const listenToAllUsers = (onUpdate: (users: User[]) => void): (() => void) => {
+    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     return createUserListener(q, onUpdate);
+};
+
+export const addProspect = async (prospectData: { displayName: string; email: string; tiktokUsername: string; discordUsername: string; }): Promise<void> => {
+    if (!db) return;
+    await addDoc(collection(db, 'users'), {
+        ...prospectData,
+        role: 'Affiliate',
+        status: 'Prospect',
+        partnerTier: 'Standard',
+        createdAt: serverTimestamp(),
+        lastContacted: serverTimestamp()
+    });
 };
 
 export const listenToPendingOnboardingRequests = (onUpdate: (users: User[]) => void): (() => void) => {
@@ -115,13 +127,16 @@ export const updateUserOnboardingStatus = async (userId: string, status: User['o
 export const updateUserProfileFields = async (userId: string, fields: Partial<User>): Promise<void> => {
     if (!db) return;
     const userDoc = doc(db, 'users', userId);
-    await updateDoc(userDoc, fields);
+    await updateDoc(userDoc, { ...fields, lastContacted: serverTimestamp() });
 };
 
-export const updateAffiliateStatus = async (userId: string, newStatus: 'Verified' | 'Banned'): Promise<void> => {
+export const updateUserStatus = async (userId: string, newStatus: UserStatus): Promise<void> => {
     if (!db) return;
     const userDoc = doc(db, 'users', userId);
-    await updateDoc(userDoc, { status: newStatus });
+    await updateDoc(userDoc, { status: newStatus, lastContacted: serverTimestamp() });
+    if (newStatus === 'Rejected' || newStatus === 'Inactive') {
+        alert(`User status has been set to "${newStatus}". They will be automatically notified and lose access to the portal.`);
+    }
 };
 
 const getUserByEmail = async (email: string): Promise<User | null> => {

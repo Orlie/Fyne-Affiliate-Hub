@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, SampleRequest, Campaign } from '../../types';
-import { listenToAllAffiliates, listenToSampleRequests, listenToAllCampaignsAdmin } from '../../services/mockApi';
+// FIX: Replaced non-existent 'listenToAllAffiliates' with 'listenToAllUsers'.
+import { listenToAllUsers, listenToSampleRequests, listenToAllCampaignsAdmin } from '../../services/mockApi';
 import Card, { CardContent } from '../../components/ui/Card';
 import SimpleBarChart from '../../components/ui/SimpleBarChart';
 import HorizontalBarChart from '../../components/ui/HorizontalBarChart';
@@ -16,7 +17,8 @@ const AnalyticsManager: React.FC = () => {
 
     useEffect(() => {
         setLoading(true);
-        const unsubAffiliates = listenToAllAffiliates(setAllAffiliates);
+        // FIX: Replaced non-existent 'listenToAllAffiliates' with 'listenToAllUsers'.
+        const unsubAffiliates = listenToAllUsers(setAllAffiliates);
         const unsubRequests = listenToSampleRequests(setAllRequests);
         const unsubCampaigns = listenToAllCampaignsAdmin(campaigns => {
             setAllCampaigns(campaigns);

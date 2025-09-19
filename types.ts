@@ -1,6 +1,9 @@
 export type UserRole = 'Admin' | 'Affiliate';
 export type Theme = 'light' | 'dark';
 
+export type UserStatus = 'Prospect' | 'Pitched' | 'Applied' | 'Waiting List' | 'Rejected' | 'Active' | 'Inactive';
+export type PartnerTier = 'Standard' | 'Pro' | 'Elite';
+
 export interface User {
   uid: string;
   email: string;
@@ -10,7 +13,7 @@ export interface User {
   discordUsername?: string;
   tiktokUsername?: string;
   shippingPhoneNumber?: string;
-  status: 'Verified' | 'Banned';
+  status: UserStatus;
   cumulativeGMV?: number;
   approvedVideoCount?: number;
   createdAt?: Date;
@@ -22,6 +25,9 @@ export interface User {
     requestedAt: Date;
     expiresAt: Date;
   };
+  adminNotes?: string;
+  partnerTier?: PartnerTier;
+  lastContacted?: Date;
 }
 
 export type SampleRequestStatus = 'PendingApproval' | 'PendingShowcase' | 'PendingOrder' | 'Shipped' | 'Rejected';

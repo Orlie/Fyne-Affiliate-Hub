@@ -1,169 +1,89 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User } from '../../types';
-import { listenToAllAffiliates, resetUserPasswordAdmin, updateAffiliateStatus, requestFeedbackFromAffiliates } from '../../services/mockApi';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, UserStatus, PartnerTier } from '../../types';
+import { listenToAllUsers, updateUserStatus, addProspect, updateUserProfileFields } from '../../services/mockApi';
 import Button from '../../components/ui/Button';
 import Card, { CardContent } from '../../components/ui/Card';
 import Textarea from '../../components/ui/Textarea';
+import Input from '../../components/ui/Input';
+import { PlusIcon } from '../../components/icons/Icons';
 
-const FEEDBACK_TEMPLATES = [
-    { title: 'General Check-in', prompt: 'Just checking in! How are things going? We\'d love to hear any feedback you have about the Fyne Creator Hub or recent campaigns.' },
-    { title: 'Onboarding Feedback', prompt: 'We see you\'ve recently joined us! How was your onboarding experience? Is there anything we can do to make it smoother for new creators?' },
-    { title: 'Top Performer Insights', prompt: 'You\'ve been doing an amazing job! What strategies are working best for you right now? We\'d love to learn from your success.' },
-];
+const STATUS_TABS: (UserStatus | 'All')[] = ['All', 'Prospect', 'Pitched', 'Applied', 'Active', 'Waiting List', 'Inactive', 'Rejected'];
 
 const AffiliatesManager: React.FC = () => {
-  const [affiliates, setAffiliates] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAffiliates, setSelectedAffiliates] = useState<Set<string>>(new Set());
+  const [activeStatusFilter, setActiveStatusFilter] = useState<UserStatus | 'All'>('All');
   
   // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [feedbackPrompt, setFeedbackPrompt] = useState('');
-  const [isSending, setIsSending] = useState(false);
-
-  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  const [isProspectModalOpen, setIsProspectModalOpen] = useState(false);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    const unsubscribe = listenToAllAffiliates((data) => {
-        setAffiliates(data);
+    const unsubscribe = listenToAllUsers((data) => {
+        setAllUsers(data);
         setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (headerCheckboxRef.current) {
-      const isIndeterminate = selectedAffiliates.size > 0 && selectedAffiliates.size < affiliates.length;
-      headerCheckboxRef.current.indeterminate = isIndeterminate;
-    }
-  }, [selectedAffiliates, affiliates.length]);
-  
-  const handleSelectOne = (uid: string) => {
-      setSelectedAffiliates(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(uid)) {
-              newSet.delete(uid);
-          } else {
-              newSet.add(uid);
-          }
-          return newSet;
-      });
-  };
+  const filteredUsers = useMemo(() => {
+    if (activeStatusFilter === 'All') return allUsers;
+    return allUsers.filter(u => u.status === activeStatusFilter);
+  }, [allUsers, activeStatusFilter]);
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.checked) {
-          setSelectedAffiliates(new Set(affiliates.map(a => a.uid)));
-      } else {
-          setSelectedAffiliates(new Set());
-      }
+  const handleStatusChange = async (userId: string, status: UserStatus) => {
+    await updateUserStatus(userId, status);
   };
   
-  const handleSelectSegment = (segment: 'new' | 'top' | 'inactive') => {
-      let segmentUids: string[] = [];
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      switch (segment) {
-          case 'new':
-              segmentUids = affiliates
-                  .filter(a => a.createdAt && new Date(a.createdAt) > thirtyDaysAgo)
-                  .map(a => a.uid);
-              break;
-          case 'top':
-              const topCount = Math.ceil(affiliates.length * 0.1); // Top 10%
-              segmentUids = [...affiliates]
-                  .sort((a, b) => (b.cumulativeGMV || 0) - (a.cumulativeGMV || 0))
-                  .slice(0, topCount)
-                  .map(a => a.uid);
-              break;
-          case 'inactive':
-               segmentUids = affiliates
-                  .filter(a => !a.cumulativeGMV || a.cumulativeGMV === 0)
-                  .map(a => a.uid);
-              break;
+  const handlePromote = async (user: User) => {
+      if (window.confirm(`Are you sure you want to promote ${user.displayName} to Pro Partner?`)) {
+          await updateUserProfileFields(user.uid, { partnerTier: 'Pro' });
       }
-      setSelectedAffiliates(new Set(segmentUids));
   };
-
-  const handleResetPassword = (userId: string) => {
-    if (window.confirm('Are you sure you want to reset the password for this affiliate?')) {
-      resetUserPasswordAdmin(userId);
-    }
-  };
-
-  const handleToggleStatus = async (affiliate: User) => {
-    const currentStatus = affiliate.status || 'Verified';
-    const newStatus = currentStatus === 'Verified' ? 'Banned' : 'Verified';
-    const actionText = newStatus === 'Banned' ? 'ban' : 'unban';
-
-    if (window.confirm(`Are you sure you want to ${actionText} ${affiliate.displayName}?`)) {
-      try {
-        await updateAffiliateStatus(affiliate.uid, newStatus);
-        // UI will update automatically via listener
-      } catch (error) {
-        console.error(`Failed to ${actionText} affiliate:`, error);
-        alert(`Could not ${actionText} affiliate. Please try again.`);
-      }
-    }
-  };
-
-  const handleSendFeedbackRequest = async () => {
-    if (!feedbackPrompt.trim()) {
-        alert("Please enter a prompt for your feedback request.");
-        return;
-    }
-    setIsSending(true);
-    await requestFeedbackFromAffiliates(Array.from(selectedAffiliates), feedbackPrompt);
-    setIsSending(false);
-    setIsModalOpen(false);
-    setFeedbackPrompt('');
-    setSelectedAffiliates(new Set());
-  };
-
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Affiliates Management</h1>
-      <p className="mt-2 text-gray-600 dark:text-gray-400">View and manage all registered affiliates.</p>
-      
-      <div className="mt-6 space-y-4">
-        <div>
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">Smart Segments</h3>
-            <div className="flex flex-wrap gap-2 mt-2">
-                <Button size="sm" variant="secondary" onClick={() => handleSelectSegment('new')}>New (Last 30d)</Button>
-                <Button size="sm" variant="secondary" onClick={() => handleSelectSegment('top')}>Top Performers</Button>
-                <Button size="sm" variant="secondary" onClick={() => handleSelectSegment('inactive')}>Inactive (No GMV)</Button>
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Creator CRM</h1>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">Track, manage, and communicate with your entire creator community.</p>
             </div>
+            <Button onClick={() => setIsProspectModalOpen(true)} className="flex items-center">
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Add Prospect
+            </Button>
         </div>
-        {selectedAffiliates.size > 0 && (
-            <div className="p-3 bg-primary-50 dark:bg-primary-900/30 rounded-lg flex items-center justify-between shadow">
-                <span className="font-semibold text-primary-800 dark:text-primary-200">{selectedAffiliates.size} affiliate(s) selected</span>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" onClick={() => setSelectedAffiliates(new Set())}>Clear Selection</Button>
-                  <Button onClick={() => setIsModalOpen(true)}>Request Feedback</Button>
-                </div>
-            </div>
-        )}
-      </div>
+      
+        <div className="mt-6 border-b border-gray-200 dark:border-gray-700">
+            <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+            {STATUS_TABS.map(status => (
+                <button
+                key={status}
+                onClick={() => setActiveStatusFilter(status)}
+                className={`${
+                    activeStatusFilter === status
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                >
+                {status}
+                </button>
+            ))}
+            </nav>
+        </div>
 
       <div className="mt-8">
         <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
           <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th scope="col" className="relative px-6 sm:w-12 sm:px-8">
-                    <input
-                        ref={headerCheckboxRef}
-                        type="checkbox"
-                        className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-                        onChange={handleSelectAll}
-                        checked={affiliates.length > 0 && selectedAffiliates.size === affiliates.length}
-                    />
-                </th>
-                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-0">Display Name</th>
-                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">TikTok</th>
-                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Feedback Status</th>
+                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Creator</th>
+                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Socials</th>
+                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Tier</th>
+                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Last Contacted</th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
                 <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right text-sm font-semibold">
                   Actions
@@ -172,45 +92,30 @@ const AffiliatesManager: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800/50">
               {loading ? (
-                <tr><td colSpan={6} className="text-center p-4">Loading affiliates...</td></tr>
-              ) : affiliates.map((affiliate) => {
-                const status = affiliate.status || 'Verified';
+                <tr><td colSpan={6} className="text-center p-4">Loading creators...</td></tr>
+              ) : filteredUsers.map((user) => {
+                const canBePromoted = (user.cumulativeGMV || 0) >= 5000 && (user.partnerTier === 'Standard' || !user.partnerTier);
                 return (
-                  <tr key={affiliate.uid} className={selectedAffiliates.has(affiliate.uid) ? 'bg-primary-50 dark:bg-primary-900/20' : ''}>
-                    <td className="relative px-7 sm:w-12 sm:px-6">
-                        <input
-                            type="checkbox"
-                            className="absolute left-4 top-1/2 -mt-2 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-                            value={affiliate.uid}
-                            checked={selectedAffiliates.has(affiliate.uid)}
-                            onChange={() => handleSelectOne(affiliate.uid)}
-                        />
+                  <tr key={user.uid}>
+                    <td className="py-4 pl-4 pr-3 text-sm sm:pl-6">
+                        <div className="font-medium text-gray-900 dark:text-white">{user.displayName || 'N/A'}</div>
+                        <div className="text-gray-500 dark:text-gray-400">{user.email}</div>
                     </td>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-0">
-                        {affiliate.displayName}
-                        <div className="text-gray-500 dark:text-gray-400">{affiliate.email}</div>
+                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        <div>TikTok: {user.tiktokUsername || 'N/A'}</div>
+                        <div>Discord: {user.discordUsername || 'N/A'}</div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{affiliate.tiktokUsername}</td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {affiliate.feedbackRequest && (
-                             <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
-                                Requested
-                            </span>
-                        )}
+                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{user.partnerTier || 'Standard'}</td>
+                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{user.lastContacted?.toLocaleDateString() || 'N/A'}</td>
+                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      <select value={user.status} onChange={(e) => handleStatusChange(user.uid, e.target.value as UserStatus)} className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-1 pl-2 pr-8 text-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500">
+                          {STATUS_TABS.filter(s => s !== 'All').map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                        status === 'Verified' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {status}
-                      </span>
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-2">
-                      <Button size="sm" variant={status === 'Verified' ? 'danger' : 'secondary'} onClick={() => handleToggleStatus(affiliate)}>
-                        {status === 'Verified' ? 'Ban' : 'Unban'}
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => handleResetPassword(affiliate.uid)}>
-                        Reset Password
+                    <td className="relative py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6 space-x-2">
+                      {canBePromoted && <Button size="sm" onClick={() => handlePromote(user)}>Promote to Pro</Button>}
+                      <Button size="sm" variant="secondary" onClick={() => { setSelectedUser(user); setIsManageModalOpen(true); }}>
+                        Manage
                       </Button>
                     </td>
                   </tr>
@@ -220,43 +125,89 @@ const AffiliatesManager: React.FC = () => {
           </table>
         </div>
       </div>
-      {isModalOpen && (
+      
+      {isProspectModalOpen && <AddProspectModal onClose={() => setIsProspectModalOpen(false)} />}
+      {isManageModalOpen && selectedUser && <ManageUserModal user={selectedUser} onClose={() => { setIsManageModalOpen(false); setSelectedUser(null); }} />}
+    </div>
+  );
+};
+
+const AddProspectModal: React.FC<{onClose: () => void}> = ({ onClose }) => {
+    const [formData, setFormData] = useState({ displayName: '', email: '', tiktokUsername: '', discordUsername: '' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        await addProspect(formData);
+        setIsSaving(false);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-lg">
+                <form onSubmit={handleSubmit}>
+                    <CardContent>
+                        <h2 className="text-xl font-bold">Add New Prospect</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create an internal record for a creator you want to contact.</p>
+                        <div className="mt-4 space-y-4">
+                            <Input label="Full Name" name="displayName" value={formData.displayName} onChange={handleChange} required />
+                            <Input label="Email" type="email" name="email" value={formData.email} onChange={handleChange} required />
+                            <Input label="TikTok Handle" name="tiktokUsername" value={formData.tiktokUsername} onChange={handleChange} placeholder="@username" required />
+                            <Input label="Discord Username" name="discordUsername" value={formData.discordUsername} onChange={handleChange} placeholder="username#1234" />
+                        </div>
+                    </CardContent>
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-2">
+                        <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+                        <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Add Prospect'}</Button>
+                    </div>
+                </form>
+            </Card>
+        </div>
+    );
+};
+
+const ManageUserModal: React.FC<{user: User; onClose: () => void}> = ({ user, onClose }) => {
+    const [adminNotes, setAdminNotes] = useState(user.adminNotes || '');
+    const [partnerTier, setPartnerTier] = useState(user.partnerTier || 'Standard');
+    const [isSaving, setIsSaving] = useState(false);
+    
+    const handleSave = async () => {
+        setIsSaving(true);
+        await updateUserProfileFields(user.uid, { adminNotes, partnerTier });
+        setIsSaving(false);
+        onClose();
+    };
+    
+    return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <Card className="w-full max-w-lg">
                 <CardContent>
-                    <h2 className="text-xl font-bold">Request Feedback from {selectedAffiliates.size} Affiliate(s)</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This will appear as a high-priority task on their dashboard.</p>
-                    <div className="mt-4">
-                        <label htmlFor="template" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Use a template</label>
-                        <select
-                            id="template"
-                            onChange={(e) => setFeedbackPrompt(e.target.value)}
-                            className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md"
-                        >
-                            <option value="">-- Select a template --</option>
-                            {FEEDBACK_TEMPLATES.map(t => <option key={t.title} value={t.prompt}>{t.title}</option>)}
-                        </select>
-                    </div>
-                    <div className="mt-4">
-                        <Textarea
-                            label="Or write a custom prompt"
-                            value={feedbackPrompt}
-                            onChange={e => setFeedbackPrompt(e.target.value)}
-                            rows={5}
-                        />
-                    </div>
-                    <div className="mt-6 flex justify-end gap-2">
-                        <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSending}>Cancel</Button>
-                        <Button onClick={handleSendFeedbackRequest} disabled={isSending}>
-                            {isSending ? 'Sending...' : `Send Request`}
-                        </Button>
+                    <h2 className="text-xl font-bold">Manage {user.displayName}</h2>
+                    <div className="mt-4 space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Partner Tier</label>
+                            <select value={partnerTier} onChange={e => setPartnerTier(e.target.value as PartnerTier)} className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-2 pl-3 pr-10 text-base focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm">
+                                <option>Standard</option>
+                                <option>Pro</option>
+                                <option>Elite</option>
+                            </select>
+                        </div>
+                        <Textarea label="Admin Notes" value={adminNotes} onChange={e => setAdminNotes(e.target.value)} rows={6} />
                     </div>
                 </CardContent>
+                <div className="p-4 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-2">
+                    <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+                    <Button onClick={handleSave} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Changes'}</Button>
+                </div>
             </Card>
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default AffiliatesManager;
